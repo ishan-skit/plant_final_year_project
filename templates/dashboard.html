@@ -14,6 +14,58 @@
 {% block extra_css %}
 <style>
 
+
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .clear-btn {
+        background: rgba(244, 67, 54, 0.2);
+        border: 1px solid rgba(244, 67, 54, 0.5);
+        color: #f44336;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .clear-btn:hover {
+        background: rgba(244, 67, 54, 0.3);
+        color: #f44336;
+        transform: translateY(-2px);
+    }
+    
+    .clear-btn i {
+        font-size: 0.9rem;
+    }
+    
+    .dropdown-menu {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+    }
+    
+    .dropdown-item {
+        color: white;
+        padding: 0.5rem 1rem;
+    }
+    
+    .dropdown-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .dropdown-divider {
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+
     * {
         box-sizing: border-box;
     }
@@ -932,11 +984,23 @@
         </div>
     </div>
 
-    <!-- Timeline Section -->
+   <!-- Timeline Section -->
     <div class="analytics-section">
-        <h2 class="section-title">
-            <i class="fas fa-history me-3"></i>Plant Health Timeline
-        </h2>
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-history me-3"></i>Plant Health Timeline
+            </h2>
+            <div class="dropdown">
+                <button class="clear-btn dropdown-toggle" type="button" id="timelineClearDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-trash-alt"></i> Clear
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="timelineClearDropdown">
+                    <li><a class="dropdown-item" href="#" onclick="clearTimeline('recent')"><i class="fas fa-clock me-2"></i>Clear Recent (24h)</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="clearTimeline('session')"><i class="fas fa-window-restore me-2"></i>Clear Session</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="clearTimeline('all')"><i class="fas fa-trash me-2"></i>Clear All History</a></li>
+                </ul>
+            </div>
+        </div>
         <div class="timeline-container">
             <div class="timeline">
                 {% if predictions %}
@@ -970,9 +1034,21 @@
 
     <!-- Advanced Predictions Grid -->
     <div class="analytics-section">
-        <h2 class="section-title">
-            <i class="fas fa-microscope me-3"></i>Recent Plant Diagnoses
-        </h2>
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-microscope me-3"></i>Recent Plant Diagnoses
+            </h2>
+            <div class="dropdown">
+                <button class="clear-btn dropdown-toggle" type="button" id="diagnosesClearDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-trash-alt"></i> Clear
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="diagnosesClearDropdown">
+                    <li><a class="dropdown-item" href="#" onclick="clearDiagnoses('recent')"><i class="fas fa-clock me-2"></i>Clear Recent (24h)</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="clearDiagnoses('session')"><i class="fas fa-window-restore me-2"></i>Clear Session</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="clearDiagnoses('all')"><i class="fas fa-trash me-2"></i>Clear All History</a></li>
+                </ul>
+            </div>
+        </div>
         
         {% if predictions and predictions|length > 0 %}
             <div class="predictions-grid">
@@ -1137,6 +1213,45 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
+
+function clearTimeline(type) {
+    clearPredictions(type, 'timeline');
+}
+
+function clearDiagnoses(type) {
+    clearPredictions(type, 'diagnoses');
+}
+
+function clearPredictions(type, section) {
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    fetch('/clear_' + (type === 'recent' ? 'recent' : 'predictions'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: type })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Successfully cleared ${type} predictions`, 'success');
+            // Reload the page to reflect changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showAlert(`Error clearing predictions: ${data.error}`, 'danger');
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+    })
+    .catch(error => {
+        showAlert(`Error: ${error.message}`, 'danger');
+        document.getElementById('loadingSpinner').style.display = 'none';
+    });
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeAdvancedDashboard();
     createHealthChart();

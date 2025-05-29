@@ -810,6 +810,66 @@ def internal_error(error):
     logger.error(f"Internal error: {error}")
     return render_template('error.html', error="Internal server error"), 500
 
+# Add these routes to your app.py file
+
+@app.route('/clear_predictions', methods=['POST'])
+@login_required
+def clear_predictions():
+    """Clear user's prediction history"""
+    try:
+        data = request.get_json()
+        clear_type = data.get('type', 'all')  # 'session', 'database', or 'all'
+        
+        if clear_type in ['session', 'all']:
+            # Clear session predictions
+            session['predictions'] = []
+            session.modified = True
+        
+        if clear_type in ['database', 'all']:
+            # Clear database predictions
+            with sqlite3.connect('plant_app.db') as conn:
+                c = conn.cursor()
+                c.execute('DELETE FROM predictions WHERE user_id = ?', (session['user_id'],))
+                conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Prediction history cleared successfully',
+            'cleared': clear_type
+        })
+        
+    except Exception as e:
+        logger.error(f"Clear predictions error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/clear_recent', methods=['POST'])
+@login_required  
+def clear_recent():
+    """Clear only recent predictions (last 24 hours)"""
+    try:
+        # Clear recent session predictions
+        session['predictions'] = []
+        session.modified = True
+        
+        # Clear recent database predictions (last 24 hours)
+        with sqlite3.connect('plant_app.db') as conn:
+            c = conn.cursor()
+            c.execute('''
+                DELETE FROM predictions 
+                WHERE user_id = ? 
+                AND created_at >= datetime('now', '-1 day')
+            ''', (session['user_id'],))
+            conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Recent predictions cleared successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Clear recent predictions error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Application startup
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
