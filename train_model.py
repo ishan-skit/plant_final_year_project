@@ -299,7 +299,7 @@ except Exception as e:
 print("🔍 Final verification...")
 try:
     # Load and test saved model exactly like app.py does
-    test_model = tf.keras.models.load_model('model/model.h5', compile=False)
+    test_model = tf.keras.models.load_model('model/model.h5')
     
     # Compile exactly like app.py
     test_model.compile(
