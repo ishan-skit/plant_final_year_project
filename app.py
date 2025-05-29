@@ -22,6 +22,8 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_caching import Cache
 from flask_sqlalchemy import SQLAlchemy
+import concurrent.futures
+from threading import Lock
 
 # Load environment variables
 load_dotenv()
@@ -77,9 +79,12 @@ TREATMENTS_PATH = 'plant_treatments.csv'
 model = None
 label_dict = {}
 treatments_df = pd.DataFrame()
+ai_cache = {}  # Cache for AI responses
+ai_cache_lock = Lock()
 
 # Load model and labels
 try:
+    print("Loading model...")
     model = tf.keras.models.load_model(MODEL_PATH)
     with open(LABELS_PATH) as f:
         label_map = json.load(f)
@@ -154,79 +159,139 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def preprocess_image(img_path):
-    img = load_img(img_path, target_size=(128, 128))
-    img_array = img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0) / 255.0
-    return img_array
+    """Optimized image preprocessing"""
+    try:
+        # Use PIL for faster loading and resizing
+        img = Image.open(img_path)
+        img = img.convert('RGB')  # Ensure RGB format
+        img = img.resize((128, 128), Image.Resampling.LANCZOS)  # Faster resizing
+        
+        # Convert to numpy array
+        img_array = np.array(img, dtype=np.float32) / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+        return img_array
+    except Exception as e:
+        print(f"Error preprocessing image: {e}")
+        raise
 
 def predict_disease(img_path):
+    """Optimized disease prediction"""
     if model is None:
         return "Model not loaded", 0.0
-    img = preprocess_image(img_path)
-    preds = model.predict(img)
-    class_index = np.argmax(preds)
-    class_name = label_dict.get(class_index, "Unknown")
-    confidence = float(np.max(preds))
-    return class_name, confidence
-
-def get_ai_treatment(disease_name, confidence_score=0.0):
-    """Get treatment information from Gemini AI when disease is unknown or confidence is low"""
+    
     try:
-        model_ai = genai.GenerativeModel('gemini-1.5-flash')
-
-        prompt = f"""
-        As a plant pathology expert, provide comprehensive treatment information for the plant disease: "{disease_name}".
-
-        Please provide a structured response with the following sections:
-        1. Disease Description: Brief overview of the disease
-        2. Treatment: Detailed treatment protocol including chemical and organic options
-        3. Prevention: Preventive measures to avoid future infections
-        4. Severity Assessment: Rate the severity (Mild/Moderate/Severe)
-        5. Monitoring: What to watch for during treatment
-
-        If the disease name seems unclear or generic, provide general plant health advice.
-        Keep the response practical and actionable for home gardeners and farmers.
-        Format your response in a clear, organized manner.
-        """
-
-        response = model_ai.generate_content(prompt)
+        print(f"Starting prediction for: {img_path}")
+        start_time = time.time()
         
-        if response and response.text:
-            ai_treatment = response.text.strip()
-            return {
-                'disease': disease_name,
-                'treatment': ai_treatment,
-                'prevention': 'AI-generated prevention advice included above',
-                'organic_treatment': 'AI-generated organic treatment included above',
-                'chemical_treatment': 'AI-generated chemical treatment included above',
-                'severity': 'As assessed by AI',
-                'source': 'Gemini AI-generated'
-            }
-        else:
-            raise Exception("No response from Gemini AI")
+        img = preprocess_image(img_path)
+        print(f"Image preprocessing took: {time.time() - start_time:.2f}s")
+        
+        pred_start = time.time()
+        preds = model.predict(img, verbose=0)  # verbose=0 for faster prediction
+        print(f"Model prediction took: {time.time() - pred_start:.2f}s")
+        
+        class_index = np.argmax(preds)
+        class_name = label_dict.get(class_index, "Unknown")
+        confidence = float(np.max(preds))
+        
+        print(f"Total prediction time: {time.time() - start_time:.2f}s")
+        return class_name, confidence
         
     except Exception as e:
-        print(f"Gemini AI treatment generation error: {e}")
-        return {
-            'disease': disease_name,
-            'treatment': f'AI treatment generation failed: {str(e)}. Please consult with a plant specialist for proper diagnosis and treatment.',
-            'prevention': 'Follow general plant care guidelines including proper watering, spacing, and monitoring.',
-            'organic_treatment': 'Apply organic compost and maintain good plant hygiene.',
-            'chemical_treatment': 'Consult with agricultural expert for appropriate chemical treatments.',
-            'severity': 'Unknown',
-            'source': 'Fallback'
-        }
+        print(f"Error in predict_disease: {e}")
+        return "Prediction Error", 0.0
+
+def get_ai_treatment_async(disease_name, confidence_score=0.0, timeout=15):
+    """Get treatment from Gemini AI with timeout and caching"""
+    
+    # Create cache key
+    cache_key = f"{disease_name}_{confidence_score:.2f}"
+    
+    # Check cache first
+    with ai_cache_lock:
+        if cache_key in ai_cache:
+            print(f"Using cached AI response for: {disease_name}")
+            return ai_cache[cache_key]
+    
+    def get_ai_response():
+        try:
+            model_ai = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Shorter, more focused prompt for faster response
+            prompt = f"""
+            Plant disease: "{disease_name}"
+            Confidence: {confidence_score:.1%}
+            
+            Provide concise treatment info:
+            1. Treatment: Main treatment method
+            2. Prevention: Key prevention steps
+            3. Severity: Mild/Moderate/Severe
+            
+            Keep response under 300 words.
+            """
+            
+            response = model_ai.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=300,  # Limit response length
+                    temperature=0.1,  # More focused responses
+                )
+            )
+            
+            if response and response.text:
+                result = {
+                    'disease': disease_name,
+                    'treatment': response.text.strip(),
+                    'prevention': 'See AI response above',
+                    'organic_treatment': 'Included in main treatment',
+                    'chemical_treatment': 'Included in main treatment',
+                    'severity': 'As assessed by AI',
+                    'source': 'Gemini AI-generated'
+                }
+                
+                # Cache the result
+                with ai_cache_lock:
+                    ai_cache[cache_key] = result
+                
+                return result
+            else:
+                raise Exception("No response from Gemini AI")
+                
+        except Exception as e:
+            print(f"Gemini AI error: {e}")
+            raise e
+    
+    # Use ThreadPoolExecutor with timeout
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(get_ai_response)
+            return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        print(f"AI request timed out after {timeout}s for disease: {disease_name}")
+        return get_fallback_treatment(disease_name)
+    except Exception as e:
+        print(f"AI request failed: {e}")
+        return get_fallback_treatment(disease_name)
+
+def get_fallback_treatment(disease_name):
+    """Fallback treatment when AI fails"""
+    return {
+        'disease': disease_name,
+        'treatment': 'Unable to generate AI treatment at this time. Please consult with a plant specialist for proper diagnosis and treatment.',
+        'prevention': 'Follow general plant care: proper watering, good drainage, adequate spacing, and regular monitoring.',
+        'organic_treatment': 'Apply organic compost, neem oil, or copper-based fungicides as appropriate.',
+        'chemical_treatment': 'Consult agricultural expert for chemical treatments if organic methods fail.',
+        'severity': 'Unknown - requires professional assessment',
+        'source': 'Fallback'
+    }
 
 def get_treatment_info(disease_name, confidence_score=0.0):
-    """Get treatment information for a disease from CSV or AI"""
+    """Get treatment information - prioritize CSV, fallback to fast AI"""
     
     CONFIDENCE_THRESHOLD = 0.7
     
-    use_ai = (confidence_score < CONFIDENCE_THRESHOLD or 
-              disease_name.lower() in ['unknown', 'unidentified', 'unclear'] or
-              treatments_df.empty)
-    
-    if not use_ai:
+    # First, try CSV database
+    if not treatments_df.empty and confidence_score >= CONFIDENCE_THRESHOLD:
         treatment_row = treatments_df[treatments_df['disease'] == disease_name]
         
         if treatment_row.empty:
@@ -234,6 +299,7 @@ def get_treatment_info(disease_name, confidence_score=0.0):
         
         if not treatment_row.empty:
             row = treatment_row.iloc[0]
+            print(f"Using CSV treatment for: {disease_name}")
             return {
                 'disease': row['disease'],
                 'treatment': row['treatment'],
@@ -244,8 +310,9 @@ def get_treatment_info(disease_name, confidence_score=0.0):
                 'source': 'Database'
             }
     
-    print(f"Using Gemini AI for treatment - Disease: {disease_name}, Confidence: {confidence_score}")
-    return get_ai_treatment(disease_name, confidence_score)
+    # Fallback to AI (with timeout and caching)
+    print(f"Using AI treatment for: {disease_name} (confidence: {confidence_score:.1%})")
+    return get_ai_treatment_async(disease_name, confidence_score, timeout=10)
 
 def getImmediateAction(disease_name, confidence=0.0):
     """Wrapper for get_treatment_info to maintain template compatibility"""
@@ -376,8 +443,13 @@ def predict():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
 
+            print("Starting prediction process...")
             predicted_class, confidence = predict_disease(filepath)
+            print(f"Prediction complete: {predicted_class} ({confidence:.2%})")
+            
+            print("Getting treatment info...")
             treatment_info = get_treatment_info(predicted_class, confidence)
+            print("Treatment info retrieved")
 
             with sqlite3.connect('plant_app.db') as conn:
                 c = conn.cursor()
@@ -467,8 +539,9 @@ def process_frame():
         try:
             predicted_class, confidence = predict_disease(temp_filepath)
             
+            # Only get treatment info for high-confidence predictions in real-time
             treatment_info = None
-            if confidence > 0.3:
+            if confidence > 0.5:
                 treatment_info = get_treatment_info(predicted_class, confidence)
             
             if os.path.exists(temp_filepath):
@@ -580,7 +653,7 @@ def api_ai_treatment():
     if not disease:
         return jsonify({"error": "Disease name is required"}), 400
     
-    treatment_info = get_ai_treatment(disease, confidence)
+    treatment_info = get_ai_treatment_async(disease, confidence, timeout=15)
     return jsonify(treatment_info)
 
 @app.route('/test_gemini')
