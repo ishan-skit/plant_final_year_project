@@ -35,10 +35,12 @@
                                 <i class="fas fa-upload"></i>
                                 <span>Upload Image</span>
                             </button>
-                            <button type="button" class="method-tab" data-method="camera">
-                                <i class="fas fa-camera"></i>
-                                <span>Camera Capture</span>
-                            </button>
+                            <a href="{{ url_for('camera') }}" class="method-tab-link">
+                                <div class="method-tab" data-method="camera">
+                                    <i class="fas fa-camera"></i>
+                                    <span>Camera Capture</span>
+                                </div>
+                            </a>
                         </div>
                     </div>
 
@@ -94,43 +96,6 @@
                             </div>
                         </div>
                     </form>
-
-                    <!-- Camera Section -->
-                    <div id="cameraSection" class="camera-section" style="display: none;">
-                        <div class="camera-container">
-                            <div class="camera-view">
-                                <video id="cameraVideo" autoplay muted playsinline></video>
-                                <canvas id="cameraCanvas" style="display: none;"></canvas>
-                            </div>
-                            <div class="camera-controls">
-                                <button type="button" id="startCamera" class="camera-btn start">
-                                    <i class="fas fa-video"></i>
-                                    Start Camera
-                                </button>
-                                <button type="button" id="captureBtn" class="camera-btn capture" style="display: none;">
-                                    <i class="fas fa-camera"></i>
-                                    Capture
-                                </button>
-                                <button type="button" id="retakeBtn" class="camera-btn retake" style="display: none;">
-                                    <i class="fas fa-redo"></i>
-                                    Retake
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Hidden form for camera submissions -->
-                        <form id="cameraForm" method="POST" action="{{ url_for('predict') }}" enctype="multipart/form-data" style="display: none;">
-                            <input type="file" id="cameraFileInput" name="file">
-                        </form>
-
-                        <!-- Action Buttons for Camera -->
-                        <div id="cameraActions" class="action-section" style="margin-top: 2rem;">
-                            <button type="button" class="btn-diagnose" id="cameraDiagnoseBtn" disabled>
-                                <i class="fas fa-search"></i>
-                                <span>Start Diagnosis</span>
-                            </button>
-                        </div>
-                    </div>
 
                     <!-- Analysis Progress -->
                     <div id="analysisProgress" class="analysis-progress">
@@ -191,16 +156,8 @@
 .method-tab { flex: 1; background: transparent; border: none; padding: 1rem; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 600; color: #6c757d; }
 .method-tab.active { background: white; color: #28a745; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
 .method-tab:hover:not(.active) { background: rgba(255,255,255,0.5); }
-.camera-section { margin-bottom: 2rem; }
-.camera-container { text-align: center; }
-.camera-view { background: #000; border-radius: 16px; overflow: hidden; margin-bottom: 1rem; position: relative; max-width: 100%; aspect-ratio: 4/3; }
-#cameraVideo, #cameraCanvas { width: 100%; height: 100%; object-fit: cover; }
-.camera-controls { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.camera-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 25px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.3s ease; min-width: 120px; justify-content: center; }
-.camera-btn.start { background: linear-gradient(135deg, #28a745, #20c997); color: white; box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3); }
-.camera-btn.capture { background: linear-gradient(135deg, #ffc107, #fd7e14); color: white; box-shadow: 0 3px 10px rgba(255, 193, 7, 0.3); }
-.camera-btn.retake { background: #6c757d; color: white; }
-.camera-btn:hover { transform: translateY(-2px); }
+.method-tab-link { text-decoration: none; flex: 1; }
+.method-tab-link .method-tab { width: 100%; }
 .upload-section { margin-bottom: 2rem; }
 .upload-zone { border: 3px dashed #dee2e6; border-radius: 16px; padding: 3rem 2rem; text-align: center; background: #f8f9fa; transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden; }
 .upload-zone::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(124, 179, 66, 0.1), transparent); transition: left 0.5s; }
@@ -246,37 +203,10 @@
 .tip-item i { color: #7cb342; font-size: 1.2rem; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-@media (max-width: 768px) { .diagnosis-title { font-size: 2rem; } .diagnosis-subtitle { font-size: 1rem; } .prediction-card { padding: 2rem; } .upload-zone { padding: 2rem 1rem; } .tips-grid { grid-template-columns: 1fr; } .action-section, .camera-controls { flex-direction: column; } .method-tabs { flex-direction: column; } }
+@media (max-width: 768px) { .diagnosis-title { font-size: 2rem; } .diagnosis-subtitle { font-size: 1rem; } .prediction-card { padding: 2rem; } .upload-zone { padding: 2rem 1rem; } .tips-grid { grid-template-columns: 1fr; } .action-section { flex-direction: column; } .method-tabs { flex-direction: column; gap: 0.5rem; } .method-tab-link { width: 100%; } }
 </style>
 
 <script>
-let cameraStream = null;
-let capturedImageData = null;
-
-// Method switching functionality
-document.querySelectorAll('.method-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const method = tab.dataset.method;
-        switchMethod(method);
-    });
-});
-
-function switchMethod(method) {
-    document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`[data-method="${method}"]`).classList.add('active');
-    
-    if (method === 'upload') {
-        document.getElementById('uploadSection').style.display = 'block';
-        document.getElementById('cameraSection').style.display = 'none';
-        stopCamera();
-    } else {
-        document.getElementById('uploadSection').style.display = 'none';
-        document.getElementById('cameraSection').style.display = 'block';
-    }
-    
-    resetForm();
-}
-
 // Upload form - Show progress on submission
 const uploadForm = document.getElementById('uploadForm');
 uploadForm.addEventListener('submit', function(e) {
@@ -285,118 +215,6 @@ uploadForm.addEventListener('submit', function(e) {
         showAnalysisProgress();
     }
 });
-
-// Camera functionality
-document.getElementById('startCamera').addEventListener('click', startCamera);
-document.getElementById('captureBtn').addEventListener('click', captureImage);
-document.getElementById('retakeBtn').addEventListener('click', retakeImage);
-document.getElementById('cameraDiagnoseBtn').addEventListener('click', handleCameraDiagnosis);
-
-async function startCamera() {
-    try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'environment'
-            } 
-        });
-        
-        const cameraVideo = document.getElementById('cameraVideo');
-        cameraVideo.srcObject = cameraStream;
-        cameraVideo.play();
-        
-        document.getElementById('startCamera').style.display = 'none';
-        document.getElementById('captureBtn').style.display = 'inline-flex';
-        
-    } catch (error) {
-        console.error('Error accessing camera:', error);
-        alert('Unable to access camera. Please ensure you have granted camera permissions and try again.');
-    }
-}
-
-function captureImage() {
-    const canvas = document.getElementById('cameraCanvas');
-    const video = document.getElementById('cameraVideo');
-    const context = canvas.getContext('2d');
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
-    
-    canvas.style.display = 'block';
-    video.style.display = 'none';
-    
-    document.getElementById('captureBtn').style.display = 'none';
-    document.getElementById('retakeBtn').style.display = 'inline-flex';
-    
-    document.getElementById('cameraDiagnoseBtn').disabled = false;
-}
-
-function retakeImage() {
-    const video = document.getElementById('cameraVideo');
-    const canvas = document.getElementById('cameraCanvas');
-    
-    video.style.display = 'block';
-    canvas.style.display = 'none';
-    
-    capturedImageData = null;
-    
-    document.getElementById('retakeBtn').style.display = 'none';
-    document.getElementById('captureBtn').style.display = 'inline-flex';
-    
-    document.getElementById('cameraDiagnoseBtn').disabled = true;
-}
-
-function stopCamera() {
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-    }
-    
-    const video = document.getElementById('cameraVideo');
-    const canvas = document.getElementById('cameraCanvas');
-    video.style.display = 'block';
-    canvas.style.display = 'none';
-    document.getElementById('startCamera').style.display = 'inline-flex';
-    document.getElementById('captureBtn').style.display = 'none';
-    document.getElementById('retakeBtn').style.display = 'none';
-    
-    capturedImageData = null;
-    document.getElementById('cameraDiagnoseBtn').disabled = true;
-}
-
-// Convert camera data to file and submit through regular form
-function handleCameraDiagnosis() {
-    if (!capturedImageData) {
-        alert('Please capture an image first');
-        return;
-    }
-    
-    showAnalysisProgress();
-    
-    // Convert base64 to blob
-    const canvas = document.getElementById('cameraCanvas');
-    canvas.toBlob(function(blob) {
-        // Create a File object from the blob
-        const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
-        
-        // Create a new FileList with our file
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        
-        // Set the file input and submit the form
-        const cameraFileInput = document.getElementById('cameraFileInput');
-        cameraFileInput.files = dt.files;
-        
-        // Submit the camera form
-        document.getElementById('cameraForm').submit();
-        
-    }, 'image/jpeg', 0.8);
-}
 
 // File upload functionality
 const uploadArea = document.getElementById('uploadArea');
@@ -514,20 +332,12 @@ function resetForm() {
     document.getElementById('uploadArea').style.display = 'block';
     document.getElementById('uploadDiagnoseBtn').disabled = true;
     
-    stopCamera();
-    document.getElementById('cameraDiagnoseBtn').disabled = true;
-    
     hideAnalysisProgress();
     document.getElementById('tipsSection').style.display = 'none';
 }
 
-window.addEventListener('beforeunload', () => {
-    stopCamera();
-});
-
 document.addEventListener('DOMContentLoaded', function() {
     resetForm();
-    switchMethod('upload');
 });
 </script>
 {% endblock %}

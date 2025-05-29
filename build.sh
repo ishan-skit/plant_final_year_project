@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# exit on error
+
+# Exit on error
 set -o errexit
 
+echo "Starting Render build process..."
+
+# Upgrade pip and setuptools first
+python -m pip install --upgrade pip setuptools wheel
+
+# Install Python dependencies
 pip install -r requirements.txt
 
-python -m pip install --upgrade pip
-python -m pip install --upgrade setuptools
+# Clear pip cache to reduce build size
+pip cache purge
+
+echo "Build completed successfully for Render!"
