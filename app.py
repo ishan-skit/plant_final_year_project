@@ -8,6 +8,7 @@ import gc
 import base64
 from io import BytesIO
 from datetime import datetime
+from datetime import timedelta
 from functools import wraps
 import numpy as np
 import pandas as pd
@@ -93,6 +94,12 @@ LABELS_PATH = 'model/labels.json'
 TREATMENTS_PATH = 'plant_treatments.csv'
 IMG_SIZE = (128, 128)  # EXACT match with train_model.py
 INPUT_SHAPE = (128, 128, 3)  # EXACT match with train_model.py
+
+# Configure session
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['SESSION_COOKIE_SECURE'] = True # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Global variables
 model = None
@@ -209,6 +216,35 @@ def init_db():
         logger.error(f"Database initialization error: {e}")
 
 init_db()
+
+
+# 1. Add the getImmediateAction function
+def getImmediateAction(disease_name):
+    """Get immediate action recommendation based on disease name"""
+    if not disease_name:
+        return "Monitor plant condition"
+    
+    disease_lower = disease_name.lower()
+    
+    # Define immediate actions for different diseases
+    if 'healthy' in disease_lower:
+        return "Continue current care routine"
+    elif any(word in disease_lower for word in ['blight', 'rot', 'wilt']):
+        return "Remove affected leaves immediately and isolate plant"
+    elif any(word in disease_lower for word in ['rust', 'fungal', 'mold']):
+        return "Apply fungicide and improve air circulation"
+    elif any(word in disease_lower for word in ['spot', 'leaf spot']):
+        return "Reduce watering frequency and remove affected areas"
+    elif any(word in disease_lower for word in ['virus', 'mosaic']):
+        return "Isolate plant immediately - virus may be contagious"
+    elif any(word in disease_lower for word in ['pest', 'insect', 'aphid']):
+        return "Apply insecticidal soap or neem oil treatment"
+    else:
+        return "Isolate plant and consult treatment guide"
+
+# Make the function available in Jinja templates
+app.jinja_env.globals.update(getImmediateAction=getImmediateAction)
+
 
 # Utility functions
 def allowed_file(filename):
@@ -488,18 +524,26 @@ def logout():
 @login_required
 def dashboard():
     try:
+        # Get session predictions for immediate updates
+        session_predictions = session.get('predictions', [])
+        
+        # Ensure session predictions is always a list
+        if not isinstance(session_predictions, list):
+            session_predictions = []
+        
+        # Get database predictions for historical data
         with sqlite3.connect('plant_app.db') as conn:
             c = conn.cursor()
             
-            # Recent predictions
+            # Recent predictions from database
             c.execute('''
                 SELECT filename, predicted_class, confidence, created_at
                 FROM predictions
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-                LIMIT 10
+                LIMIT 20
             ''', (session['user_id'],))
-            predictions = c.fetchall()
+            db_predictions = c.fetchall()
             
             # Statistics
             c.execute('''
@@ -512,14 +556,42 @@ def dashboard():
                 WHERE user_id = ?
             ''', (session['user_id'],))
             stats = c.fetchone() or (0, 0, 0, 0)
-    
+        
+        # Combine session and database predictions (session first for recent activity)
+        all_predictions = session_predictions + [list(p) for p in db_predictions]
+        
+        # Remove duplicates based on filename and limit to 20
+        seen_files = set()
+        unique_predictions = []
+        for pred in all_predictions:
+            filename = pred[0] if len(pred) > 0 else ''
+            if filename not in seen_files:
+                seen_files.add(filename)
+                unique_predictions.append(pred)
+                if len(unique_predictions) >= 20:
+                    break
+        
+        # Sort by timestamp if available (most recent first)
+        try:
+            unique_predictions = sorted(unique_predictions, 
+                                     key=lambda x: x[3] if len(x) > 3 else '', 
+                                     reverse=True)
+        except:
+            pass  # If sorting fails, use original order
+        
+        app.logger.info(f"Dashboard loaded with {len(unique_predictions)} predictions")
+        
         return render_template('dashboard.html', 
-                            predictions=predictions,
+                            predictions=unique_predictions,
                             stats=stats)
+                            
     except Exception as e:
-        logger.error(f"Dashboard error: {e}")
-        flash("Error loading dashboard.")
-        return render_template('dashboard.html', predictions=[], stats=(0, 0, 0, 0))
+        app.logger.error(f"Dashboard error: {str(e)}")
+        # Return dashboard with empty data if there's an error
+        return render_template('dashboard.html', 
+                            predictions=[], 
+                            stats=(0, 0, 0, 0))
+
 
 @app.route('/predict', methods=['GET', 'POST'])
 @login_required
@@ -535,7 +607,7 @@ def predict():
                 predicted_class, confidence = predict_disease(filepath)
                 treatment_info = get_treatment_info(predicted_class, confidence)
 
-                # Save prediction
+                # Save to database
                 with sqlite3.connect('plant_app.db') as conn:
                     c = conn.cursor()
                     c.execute('''
@@ -543,6 +615,29 @@ def predict():
                         VALUES (?, ?, ?, ?)''',
                         (session['user_id'], filename, predicted_class, confidence))
                     conn.commit()
+
+                # ALSO save to session for immediate dashboard updates
+                if 'predictions' not in session:
+                    session['predictions'] = []
+                
+                # Create prediction entry with timestamp
+                prediction_entry = [
+                    filename,  # image filename
+                    predicted_class,  # disease name
+                    confidence,  # confidence score (0-1)
+                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # timestamp
+                ]
+                
+                # Add to beginning of list (most recent first)
+                session['predictions'].insert(0, prediction_entry)
+                
+                # Keep only last 10 predictions in session to avoid bloat
+                session['predictions'] = session['predictions'][:10]
+                
+                # Make sure session is saved
+                session.modified = True
+                
+                app.logger.info(f"Saved prediction: {predicted_class} with {confidence:.3f} confidence")
 
                 return render_template('result.html', 
                                     filename=filename, 
@@ -556,6 +651,8 @@ def predict():
             flash("Invalid file format or no file selected.")
             
     return render_template('predict.html')
+
+                     
 
 @app.route('/camera')
 @login_required
@@ -595,6 +692,21 @@ def predict_camera():
                 (session['user_id'], filename, predicted_class, confidence))
             conn.commit()
         
+        # ALSO save to session for immediate dashboard updates
+        if 'predictions' not in session:
+            session['predictions'] = []
+        
+        prediction_entry = [
+            filename,
+            predicted_class,
+            confidence,
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        ]
+        
+        session['predictions'].insert(0, prediction_entry)
+        session['predictions'] = session['predictions'][:10]
+        session.modified = True
+        
         return jsonify({
             'success': True,
             'filename': filename,
@@ -606,6 +718,8 @@ def predict_camera():
     except Exception as e:
         logger.error(f"Camera prediction error: {e}")
         return jsonify({'error': str(e)}), 500
+        
+
 
 @app.route('/about')
 @login_required
