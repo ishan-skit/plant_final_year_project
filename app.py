@@ -109,7 +109,14 @@ def load_model_safely():
         try:
             if os.path.exists(MODEL_PATH):
                 logger.info(f"Loading model from {MODEL_PATH} (attempt {attempt + 1})")
-                model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+                
+                # FIXED: Load model with custom object scope to handle Input layer deserialization
+                with tf.keras.utils.custom_object_scope({}):
+                    model = tf.keras.models.load_model(
+                        MODEL_PATH, 
+                        compile=False,
+                        custom_objects=None
+                    )
                 
                 # Recompile with exact same settings as train_model.py
                 model.compile(
@@ -145,9 +152,6 @@ def load_model_safely():
     except Exception as e:
         logger.error(f"Error loading labels: {e}")
         label_dict = {}
-
-# Load model and data on startup
-load_model_safely()
 
 # Load treatment data
 try:
