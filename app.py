@@ -493,12 +493,11 @@ def dashboard():
             
             # Recent predictions
             c.execute('''
-                SELECT filename, predicted_class, confidence, created_at
-                FROM predictions
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                LIMIT 10
-            ''', (session['user_id'],))
+    SELECT filename, predicted_class, confidence, created_at
+    FROM predictions
+    ORDER BY created_at DESC
+    LIMIT 10
+''')
             predictions = c.fetchall()
             
             # Statistics
@@ -649,6 +648,43 @@ def test_model():
         "input_shape": INPUT_SHAPE,
         "classes": list(label_dict.values())[:5] if label_dict else []
     })
+
+
+@app.route('/save_detection', methods=['POST'])
+@login_required
+def save_detection():
+    try:
+        data = request.get_json()
+        predicted_class = data.get('predicted_class')
+        confidence = data.get('confidence')
+        image_data = data.get('image')  # Base64 string
+
+        if not (predicted_class and confidence and image_data):
+            return jsonify({"error": "Incomplete data"}), 400
+
+        # Decode and save image
+        image_bytes = base64.b64decode(image_data.split(',')[1])
+        filename = f"manual_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        with open(filepath, 'wb') as f:
+            f.write(image_bytes)
+
+        # Save to DB
+        with sqlite3.connect('plant_app.db') as conn:
+            c = conn.cursor()
+            c.execute('''
+                INSERT INTO predictions (user_id, filename, predicted_class, confidence)
+                VALUES (?, ?, ?, ?)''',
+                (session['user_id'], filename, predicted_class, float(confidence)))
+            conn.commit()
+
+        return jsonify({"success": True, "filename": filename})
+
+    except Exception as e:
+        logger.error(f"Error saving detection: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # Error handlers
 @app.errorhandler(404)

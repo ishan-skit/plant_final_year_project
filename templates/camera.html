@@ -818,20 +818,30 @@
             }
             
             async saveDetection() {
-                if (!this.lastDetection) {
-                    showAlert('No detection to save!', 'warning');
-                    return;
-                }
-                
-                try {
-                    // Simulate save operation
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    showAlert('Detection saved successfully!', 'success');
-                } catch (error) {
-                    console.error('Error saving detection:', error);
-                    showAlert('Error saving detection', 'danger');
-                }
-            }
+    if (!this.lastDetection) {
+        showAlert('No detection to save!', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/save_detection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.lastDetection)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showAlert('Detection saved to database!', 'success');
+        } else {
+            throw new Error(result.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.error('Save error:', error);
+        showAlert('Error saving detection to server', 'danger');
+    }
+}
+
             
             updateStatus(type, text) {
                 this.statusIndicator.className = `status-indicator status-${type}`;
