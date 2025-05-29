@@ -12,3 +12,6 @@ flask-limiter==3.5.0
 python-dotenv==1.0.0
 gunicorn==20.1.0
 flask_caching
+Flask-SQLAlchemy==3.1.1
+
+
