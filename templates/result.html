@@ -1,0 +1,820 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Diagnosis Result - PlantCare AI</title>
+{% endblock %}
+
+{% block content %}
+<style>
+/* Result Page Specific Color Variations */
+:root {
+    --result-primary: #1e4a1e;
+    --result-secondary: #3d6b4d;
+    --result-accent: #68a362;
+    --result-success: #22c55e;
+    --result-info: #0ea5e9;
+    --result-warning: #f59e0b;
+    --result-danger: #ef4444;
+    --result-bg: #f0f9f0;
+    --result-card-bg: #ffffff;
+    --result-shadow: 0 6px 16px rgba(34, 197, 94, 0.12);
+    --result-shadow-hover: 0 12px 32px rgba(34, 197, 94, 0.18);
+    --result-gradient: linear-gradient(135deg, #22c55e, #16a34a);
+    --result-gradient-info: linear-gradient(135deg, #0ea5e9, #0284c7);
+    --result-gradient-warning: linear-gradient(135deg, #f59e0b, #d97706);
+    --result-ai: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.result-section {
+    background: var(--result-bg);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.result-header {
+    background: var(--result-gradient);
+    color: white;
+    padding: 2rem 0;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    box-shadow: var(--result-shadow);
+}
+
+.result-header h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.result-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.result-card {
+    background: var(--result-card-bg);
+    border-radius: 24px;
+    box-shadow: var(--result-shadow);
+    padding: 2.5rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(34, 197, 94, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.result-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: var(--result-gradient);
+}
+
+.result-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--result-shadow-hover);
+}
+
+.image-container {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.uploaded-image {
+    max-height: 320px;
+    width: 100%;
+    object-fit: contain;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease;
+}
+
+.uploaded-image:hover {
+    transform: scale(1.02);
+}
+
+.image-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--result-primary);
+}
+
+.prediction-result {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.prediction-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--result-success);
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+}
+
+.confidence-badge {
+    display: inline-block;
+    background: var(--result-gradient-info);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.confidence-low {
+    background: var(--result-gradient-warning);
+}
+
+.ai-badge {
+    display: inline-block;
+    background: var(--result-ai);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    margin-bottom: 0.5rem;
+}
+
+.treatment-section {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 20px;
+    padding: 2rem;
+    margin: 2rem 0;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.treatment-section.ai-powered {
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.treatment-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    color: var(--result-primary);
+}
+
+.treatment-header h5 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0 0.5rem;
+}
+
+.treatment-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.treatment-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid var(--result-success);
+    transition: all 0.3s ease;
+}
+
+.treatment-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.treatment-item:nth-child(2) {
+    border-left-color: var(--result-info);
+}
+
+.treatment-item:nth-child(3) {
+    border-left-color: var(--result-warning);
+}
+
+.treatment-item:nth-child(4) {
+    border-left-color: var(--result-danger);
+}
+
+.treatment-label {
+    font-weight: 700;
+    color: var(--result-primary);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.treatment-text {
+    color: #475569;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    white-space: pre-line;
+}
+
+.ai-treatment-text {
+    background: #fefefe;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.btn-result-primary {
+    background: var(--result-gradient);
+    color: white;
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-result-primary:hover {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-result-outline {
+    background: transparent;
+    color: var(--result-success);
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 2px solid var(--result-success);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-result-outline:hover {
+    background: var(--result-success);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+    text-decoration: none;
+}
+
+.status-indicator {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: var(--result-gradient);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.source-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.source-database {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--result-success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.source-ai {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.source-fallback {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--result-warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .result-header h2 {
+        font-size: 2rem;
+    }
+    
+    .prediction-title {
+        font-size: 1.5rem;
+    }
+    
+    .result-card {
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+    
+    .treatment-section {
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .btn-result-primary,
+    .btn-result-outline {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .result-section {
+        padding: 1rem 0;
+    }
+    
+    .result-header {
+        padding: 1.5rem 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .uploaded-image {
+        max-height: 250px;
+    }
+    
+    .treatment-item {
+        padding: 1rem;
+    }
+    
+    .source-indicator {
+        position: static;
+        display: inline-block;
+        margin: 1rem 0 0 0;
+    }
+}
+
+/* Animation Effects */
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.slide-up {
+    animation: slideUp 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Enhanced Treatment Protocol Styles */
+.treatment-protocol-enhanced {
+    background: linear-gradient(135deg, #fefefe, #f9fafb) !important;
+    border: 1px solid #e2e8f0 !important;
+    position: relative;
+    overflow: visible;
+}
+
+.treatment-protocol-enhanced::before {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+}
+
+.enhanced-treatment-content {
+    margin-top: 1rem;
+}
+
+.treatment-step-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInUp 0.6s ease forwards;
+}
+
+.treatment-step-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border-color: #22c55e;
+}
+
+.treatment-step-card:nth-child(1) { animation-delay: 0.1s; }
+.treatment-step-card:nth-child(2) { animation-delay: 0.2s; }
+.treatment-step-card:nth-child(3) { animation-delay: 0.3s; }
+.treatment-step-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes slideInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.step-header-enhanced {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.step-icon-enhanced {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.step-icon-enhanced.immediate { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.step-icon-enhanced.treatment { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.step-icon-enhanced.monitoring { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+.step-icon-enhanced.general { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+.step-title-enhanced {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.step-content-enhanced {
+    margin-left: 60px;
+}
+
+.treatment-point {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.point-icon {
+    color: #22c55e;
+    font-size: 0.875rem;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.point-text {
+    color: #475569;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+.ai-enhancement-badge {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #8b5cf6;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+}
+
+.fallback-treatment {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.fallback-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #64748b, #475569);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.fallback-text {
+    color: #475569;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+    .step-content-enhanced {
+        margin-left: 0;
+        margin-top: 1rem;
+    }
+    
+    .step-header-enhanced {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .fallback-treatment {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+
+<section class="result-section">
+    <div class="container">
+        <div class="result-header text-center fade-in">
+            <h2><i class="fas fa-microscope me-2"></i>Diagnosis Complete</h2>
+            <p>AI-powered analysis of your plant's health condition</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="result-card slide-up">
+                    <div class="status-indicator">
+                        <i class="fas fa-check-circle me-1"></i>Analysis Complete
+                    </div>
+
+                    <!-- Source Indicator -->
+                    {% if treatment_info.source %}
+                    <div class="source-indicator 
+                        {% if treatment_info.source == 'AI-generated' %}source-ai
+                        {% elif treatment_info.source == 'Database' %}source-database
+                        {% else %}source-fallback{% endif %}">
+                        {% if treatment_info.source == 'AI-generated' %}
+                            <i class="fas fa-robot me-1"></i>AI-Powered
+                        {% elif treatment_info.source == 'Database' %}
+                            <i class="fas fa-database me-1"></i>Database
+                        {% else %}
+                            <i class="fas fa-exclamation-triangle me-1"></i>Fallback
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="image-container text-center">
+                        <div class="image-overlay">
+                            <i class="fas fa-leaf me-1"></i>Sample Image
+                        </div>
+                        <img src="{{ url_for('static', filename='uploads/' ~ filename) }}" 
+                             alt="Plant Leaf Analysis" 
+                             class="uploaded-image">
+                    </div>
+
+                    <div class="prediction-result">
+                        <div class="prediction-title">{{ predicted_class }}</div>
+                        <div class="confidence-badge {% if confidence < 70 %}confidence-low{% endif %}">
+                            <i class="fas fa-chart-line me-1"></i>
+                            Confidence: {{ confidence }}%
+                        </div>
+                        {% if treatment_info.source == 'AI-generated' %}
+                        <div class="ai-badge">
+                            <i class="fas fa-robot me-1"></i>Enhanced with AI Analysis
+                        </div>
+                        {% endif %}
+                        {% if confidence < 70 %}
+                        <div style="margin-top: 0.5rem;">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Low confidence detected - AI assistance activated for better treatment advice
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="treatment-section {% if treatment_info.source == 'AI-generated' %}ai-powered{% endif %}">
+                        <div class="treatment-header">
+                            <i class="fas fa-stethoscope" style="font-size: 1.5rem;"></i>
+                            <h5>Treatment Information</h5>
+                        </div>
+
+                        <div class="treatment-grid">
+                            <!-- Disease Information -->
+                            <div class="treatment-item">
+                                <div class="treatment-label">
+                                    <i class="fas fa-bug me-2 text-success"></i>Disease/Condition
+                                </div>
+                                <div class="treatment-text">
+                                    {{ treatment_info.disease if treatment_info.disease else predicted_class }}
+                                </div>
+                            </div>
+
+                            <!-- Treatment - Main Section -->
+                           <!-- Enhanced Treatment Protocol Section - FIXED VERSION -->
+<div class="treatment-item treatment-protocol-enhanced">
+    <div class="treatment-label">
+        <i class="fas fa-medkit me-2" style="color: var(--result-warning);"></i>Treatment Protocol
+    </div>
+    
+    {% if treatment_info.treatment %}
+        <div class="enhanced-treatment-content">
+            <!-- Single treatment card instead of multiple repetitive cards -->
+            <div class="treatment-step-card">
+                <div class="step-header-enhanced">
+                    <div class="step-icon-enhanced treatment">
+                        <i class="fas fa-flask"></i>
+                    </div>
+                    <div class="step-title-enhanced">Treatment Instructions</div>
+                </div>
+                
+                <div class="step-content-enhanced">
+                    <!-- Process the treatment text more efficiently -->
+                    {% set treatment_text = treatment_info.treatment.strip() %}
+                    {% if '\n\n' in treatment_text %}
+                        <!-- If there are clear paragraph breaks, use them -->
+                        {% set treatment_paragraphs = treatment_text.split('\n\n') %}
+                        {% for paragraph in treatment_paragraphs %}
+                            {% if paragraph.strip() %}
+                                <div class="treatment-point">
+                                    <i class="fas fa-check-circle point-icon"></i>
+                                    <span class="point-text">{{ paragraph.strip() }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% elif '\n' in treatment_text %}
+                        <!-- If there are line breaks, use them -->
+                        {% set treatment_lines = treatment_text.split('\n') %}
+                        {% for line in treatment_lines %}
+                            {% if line.strip() and line.strip() != '' %}
+                                <div class="treatment-point">
+                                    <i class="fas fa-check-circle point-icon"></i>
+                                    <span class="point-text">{{ line.strip() }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <!-- If it's just a single block of text, split by sentences -->
+                        {% set sentences = treatment_text.split('.') %}
+                        {% for sentence in sentences %}
+                            {% if sentence.strip() and sentence.strip() != '' %}
+                                <div class="treatment-point">
+                                    <i class="fas fa-check-circle point-icon"></i>
+                                    <span class="point-text">{{ sentence.strip() }}{% if not sentence.endswith('.') %}.{% endif %}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if treatment_info.source == 'AI-generated' %}
+                <div class="ai-enhancement-badge">
+                    <i class="fas fa-robot me-2"></i>
+                    <span>Enhanced with AI Analysis</span>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="fallback-treatment">
+            <div class="fallback-icon">
+                <i class="fas fa-user-md"></i>
+            </div>
+            <div class="fallback-text">
+                Consult with a plant specialist or agricultural expert for specific treatment recommendations tailored to your plant's condition.
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Additional Treatment Options -->
+                            {% if treatment_info.organic_treatment and treatment_info.organic_treatment != 'AI-generated organic treatment included above' %}
+                            <div class="treatment-item">
+                                <div class="treatment-label">
+                                    <i class="fas fa-leaf me-2" style="color: var(--result-success);"></i>Organic Treatment
+                                </div>
+                                <div class="treatment-text">{{ treatment_info.organic_treatment }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if treatment_info.chemical_treatment and treatment_info.chemical_treatment != 'AI-generated chemical treatment included above' %}
+                            <div class="treatment-item">
+                                <div class="treatment-label">
+                                    <i class="fas fa-flask me-2" style="color: var(--result-danger);"></i>Chemical Treatment
+                                </div>
+                                <div class="treatment-text">{{ treatment_info.chemical_treatment }}</div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Severity Level -->
+                            {% if treatment_info.severity and treatment_info.severity != 'Unknown' %}
+                            <div class="treatment-item">
+                                <div class="treatment-label">
+                                    <i class="fas fa-exclamation-triangle me-2" style="color: var(--result-warning);"></i>Severity Level
+                                </div>
+                                <div class="treatment-text">
+                                    <span class="badge 
+                                        {% if treatment_info.severity|lower == 'mild' %}bg-success
+                                        {% elif treatment_info.severity|lower == 'moderate' %}bg-warning
+                                        {% elif treatment_info.severity|lower == 'severe' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ treatment_info.severity }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- AI Disclaimer -->
+                        {% if treatment_info.source == 'AI-generated' %}
+                        <div class="mt-3 p-3" style="background: rgba(139, 92, 246, 0.05); border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.1);">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1" style="color: #8b5cf6;"></i>
+                                <strong>AI-Enhanced Analysis:</strong> This treatment information was generated using AI to provide comprehensive guidance when standard database information was insufficient. Always consult with agricultural experts for critical plant health decisions.
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="action-buttons">
+                        <a href="{{ url_for('predict') }}" class="btn-result-outline">
+                            <i class="fas fa-redo"></i>
+                            New Analysis
+                        </a>
+                        <a href="{{ url_for('dashboard') }}" class="btn-result-primary">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// Add some interactive functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Smooth scroll animations
+    const treatmentItems = document.querySelectorAll('.treatment-item');
+    treatmentItems.forEach((item, index) => {
+        setTimeout(() => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px)';
+            item.style.transition = 'all 0.6s ease';
+            
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, 100);
+        }, index * 150);
+    });
+});
+</script>
+{% endblock %}

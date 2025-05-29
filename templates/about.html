@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>About Us - PlantCare AI | Revolutionizing Plant Healthcare</title>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section" style="min-height: 60vh; background: linear-gradient(135deg, #2d5a27 0%, #4a7c59 50%, #7cb342 100%);">
+    <div class="hero-bg-overlay"></div>
+    <div class="container text-center position-relative" style="z-index: 2;">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="hero-badge mb-4">
+                    <span class="badge bg-light text-success px-4 py-2 rounded-pill">
+                        <i class="fas fa-leaf me-2"></i>AI-Powered Plant Healthcare
+                    </span>
+                </div>
+                <h1 class="display-4 hero-title mb-4">About PlantCare AI</h1>
+                <p class="lead hero-subtitle">Revolutionizing agriculture through intelligent plant disease detection and sustainable farming solutions</p>
+                <div class="trust-indicators mt-5">
+                    <div class="row text-center">
+                        <div class="col-md-4 trust-item">
+                            <strong class="text-gradient">95%+</strong>
+                            <span>Accuracy Rate</span>
+                        </div>
+                        <div class="col-md-4 trust-item">
+                            <strong class="text-gradient">50K+</strong>
+                            <span>Plants Diagnosed</span>
+                        </div>
+                        <div class="col-md-4 trust-item">
+                            <strong class="text-gradient">24/7</strong>
+                            <span>AI Support</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Mission & Vision Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-6">
+                <div class="pe-lg-4">
+                    <h2 class="section-title display-5 mb-4">Our Mission</h2>
+                    <p class="lead mb-4">Empowering farmers and plant enthusiasts worldwide with cutting-edge AI technology to detect, diagnose, and treat plant diseases before they spread.</p>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center p-3">
+                                <div class="feature-icon mx-auto mb-3" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                                    <i class="fas fa-globe"></i>
+                                </div>
+                                <h6>Global Impact</h6>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-3">
+                                <div class="feature-icon mx-auto mb-3" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                                    <i class="fas fa-seedling"></i>
+                                </div>
+                                <h6>Sustainable Future</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card-custom hover-lift">
+                    <div class="text-center p-4">
+                        <i class="fas fa-bullseye text-success mb-3" style="font-size: 4rem;"></i>
+                        <h4 class="text-primary mb-3">Vision 2030</h4>
+                        <p class="mb-0">To become the world's leading AI platform for plant health monitoring, reducing crop losses by 40% globally and supporting sustainable agriculture practices.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Technology Stack Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title display-5 mb-3">Powered by Advanced Technology</h2>
+            <p class="section-subtitle text-muted">Built with cutting-edge tools and frameworks for maximum performance</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="feature-card text-center hover-lift">
+                    <div class="feature-icon bg-gradient-primary">
+                        <i class="fab fa-python"></i>
+                    </div>
+                    <h5 class="feature-title">Backend</h5>
+                    <p class="feature-desc">Flask & Python powering our robust server architecture</p>
+                    <div class="feature-stats">
+                        <span class="badge bg-primary-subtle text-primary">Flask</span>
+                        <span class="badge bg-primary-subtle text-primary">SQLite</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="feature-card text-center hover-lift">
+                    <div class="feature-icon bg-gradient-warning">
+                        <i class="fab fa-js-square"></i>
+                    </div>
+                    <h5 class="feature-title">Frontend</h5>
+                    <p class="feature-desc">Modern HTML5, CSS3 & JavaScript for seamless user experience</p>
+                    <div class="feature-stats">
+                        <span class="badge bg-warning-subtle text-warning">HTML5</span>
+                        <span class="badge bg-warning-subtle text-warning">Bootstrap</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="feature-card text-center hover-lift">
+                    <div class="feature-icon bg-gradient-info">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h5 class="feature-title">AI Engine</h5>
+                    <p class="feature-desc">TensorFlow & Keras models trained on millions of plant images</p>
+                    <div class="feature-stats">
+                        <span class="badge bg-info-subtle text-info">TensorFlow</span>
+                        <span class="badge bg-info-subtle text-info">Keras</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="feature-card text-center hover-lift">
+                    <div class="feature-icon" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <h5 class="feature-title">Infrastructure</h5>
+                    <p class="feature-desc">Scalable cloud architecture ensuring 99.9% uptime</p>
+                    <div class="feature-stats">
+                        <span class="badge bg-secondary-subtle text-purple">Cloud</span>
+                        <span class="badge bg-secondary-subtle text-purple">Scalable</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title display-5 mb-3">How PlantCare AI Works</h2>
+            <p class="section-subtitle text-muted">Advanced machine learning in three simple steps</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="step-card text-center card-custom">
+                    <div class="step-number">
+                        <span class="badge bg-gradient-success">1</span>
+                    </div>
+                    <div class="step-icon">
+                        <i class="fas fa-camera text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="step-title">Upload Image</h5>
+                    <p class="step-desc">Simply take a photo of the affected plant leaf and upload it to our platform</p>
+                    <div class="step-tip">
+                        <small><i class="fas fa-lightbulb me-1"></i>Best results with clear, well-lit photos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="step-card text-center card-custom">
+                    <div class="step-number">
+                        <span class="badge bg-gradient-info">2</span>
+                    </div>
+                    <div class="step-icon">
+                        <i class="fas fa-cogs text-info" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="step-title">AI Analysis</h5>
+                    <p class="step-desc">Our deep learning model analyzes the image using advanced computer vision algorithms</p>
+                    <div class="step-tip">
+                        <small><i class="fas fa-clock me-1"></i>Analysis completed in under 3 seconds</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="step-card text-center card-custom">
+                    <div class="step-number">
+                        <span class="badge bg-gradient-warning">3</span>
+                    </div>
+                    <div class="step-icon">
+                        <i class="fas fa-prescription-bottle-alt text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="step-title">Get Treatment</h5>
+                    <p class="step-desc">Receive instant diagnosis with detailed treatment recommendations and prevention tips</p>
+                    <div class="step-tip">
+                        <small><i class="fas fa-shield-alt me-1"></i>95%+ accuracy backed by research</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Developer Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card-custom text-center p-5">
+                    <div class="mb-4">
+                        <div class="feature-icon mx-auto" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <i class="fas fa-code"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-primary mb-4">Meet the Development Team</h3>
+                    <p class="lead mb-4">This innovative project represents the convergence of artificial intelligence and agricultural science, developed with passion and dedication to solving real-world challenges.</p>
+                    <div class="row text-center mt-4">
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-graduation-cap text-success mb-2" style="font-size: 2rem;"></i>
+                                <h6>Academic Excellence</h6>
+                                <small class="text-muted">Research-driven development</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-heart text-danger mb-2" style="font-size: 2rem;"></i>
+                                <h6>Built with Passion</h6>
+                                <small class="text-muted">Solving real problems</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-rocket text-info mb-2" style="font-size: 2rem;"></i>
+                                <h6>Future Forward</h6>
+                                <small class="text-muted">Continuous innovation</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Impact Statistics -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title display-5 mb-3">Our Impact</h2>
+            <p class="section-subtitle text-muted">Making a difference in plant healthcare worldwide</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="card-custom text-center hover-lift">
+                    <i class="fas fa-leaf text-success mb-3" style="font-size: 3rem;"></i>
+                    <h3 class="text-success">50,000+</h3>
+                    <p class="mb-0">Plants Diagnosed</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card-custom text-center hover-lift">
+                    <i class="fas fa-users text-info mb-3" style="font-size: 3rem;"></i>
+                    <h3 class="text-info">10,000+</h3>
+                    <p class="mb-0">Happy Users</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card-custom text-center hover-lift">
+                    <i class="fas fa-globe text-warning mb-3" style="font-size: 3rem;"></i>
+                    <h3 class="text-warning">25+</h3>
+                    <p class="mb-0">Countries Served</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card-custom text-center hover-lift">
+                    <i class="fas fa-chart-line text-purple mb-3" style="font-size: 3rem;"></i>
+                    <h3 class="text-purple">95%+</h3>
+                    <p class="mb-0">Accuracy Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section py-5 text-white text-center">
+    <div class="container position-relative" style="z-index: 2;">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="display-5 mb-4">Ready to Transform Your Plant Care?</h2>
+                <p class="lead mb-4">Join thousands of users who trust PlantCare AI for accurate plant disease detection</p>
+                <div class="cta-buttons">
+                    <a href="/" class="btn btn-custom btn-lg me-3 pulse-animation">
+                        Start Diagnosis <i class="fas fa-arrow-right btn-arrow"></i>
+                    </a>
+                    <a href="/contact" class="btn btn-outline-custom btn-lg">
+                        Contact Us <i class="fas fa-envelope ms-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Add some custom styles for animations -->
+<style>
+.step-card {
+    position: relative;
+    transform: translateY(0);
+    transition: all 0.3s ease;
+}
+
+.step-card:hover {
+    transform: translateY(-10px);
+}
+
+.trust-item strong {
+    font-size: 2rem;
+    display: block;
+    background: linear-gradient(45deg, #7cb342, #28a745);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hero-badge,
+.hero-title,
+.hero-subtitle,
+.trust-indicators {
+    animation: fadeInUp 0.8s ease-out;
+}
+
+.hero-title {
+    animation-delay: 0.2s;
+}
+
+.hero-subtitle {
+    animation-delay: 0.4s;
+}
+
+.trust-indicators {
+    animation-delay: 0.6s;
+}
+
+.feature-card,
+.step-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.feature-card:nth-child(1) { animation-delay: 0.1s; }
+.feature-card:nth-child(2) { animation-delay: 0.2s; }
+.feature-card:nth-child(3) { animation-delay: 0.3s; }
+.feature-card:nth-child(4) { animation-delay: 0.4s; }
+</style>
+
+{% endblock %}

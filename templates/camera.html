@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Plant Disease Detection</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2d5a27;
+            --secondary: #4a7c59;
+            --accent: #7cb342;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --light-bg: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #ffffff;
+            --text-muted: #6c757d;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
+            --radius: 12px;
+            --radius-lg: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --gradient-success: linear-gradient(135deg, #28a745, #20c997);
+            --gradient-warning: linear-gradient(135deg, #ffc107, #fd7e14);
+            --gradient-info: linear-gradient(135deg, #17a2b8, #6f42c1);
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, #ffffff 0%, var(--light-bg) 100%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .navbar-custom {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow);
+            padding: 1rem 1.5rem;
+        }
+
+        .navbar-custom .navbar-brand {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .navbar-custom .nav-link {
+            font-weight: 500;
+            color: var(--primary);
+            margin-right: 15px;
+            transition: var(--transition);
+        }
+
+        .navbar-custom .nav-link:hover {
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+        
+        .camera-container {
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 2.5rem;
+            max-width: 1200px;
+            margin: 2rem auto;
+            border: 1px solid rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-success);
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .section-title {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: var(--radius-lg);
+            border: 3px solid var(--accent);
+            background: #000;
+            box-shadow: var(--shadow-lg);
+            transition: var(--transition);
+        }
+
+        #video:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .controls {
+            margin-top: 2rem;
+            text-align: center;
+            gap: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .btn-camera {
+            background: var(--gradient-success);
+            color: var(--text-light);
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            min-width: 160px;
+            cursor: pointer;
+        }
+        
+        .btn-camera:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+            background: linear-gradient(135deg, #20c997, #28a745);
+            color: var(--text-light);
+        }
+        
+        .btn-camera.btn-stop {
+            background: linear-gradient(135deg, var(--danger), #c82333);
+        }
+
+        .btn-camera.btn-stop:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+        }
+        
+        .btn-camera.btn-save {
+            background: var(--gradient-info);
+        }
+
+        .btn-camera.btn-save:hover {
+            background: linear-gradient(135deg, #6f42c1, #17a2b8);
+        }
+        
+        .status-container {
+            margin-top: 1.5rem;
+            text-align: center;
+            padding: 1rem;
+            background: rgba(248, 249, 250, 0.8);
+            border-radius: var(--radius);
+            border-left: 3px solid var(--accent);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active { 
+            background: var(--success); 
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        }
+        .status-inactive { background: var(--text-muted); }
+        .status-processing { 
+            background: var(--warning); 
+            animation: pulse 1s infinite; 
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+        
+        .detection-panel {
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detection-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        .detection-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .panel-title {
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .detection-result {
+            text-align: center;
+            padding: 1.5rem;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .detection-disease {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 24px;
+            background: #e9ecef;
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 1rem 0;
+            position: relative;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: var(--gradient-success);
+            border-radius: var(--radius);
+            transition: width 0.8s ease;
+            position: relative;
+        }
+
+        .confidence-text {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .detection-count {
+            background: rgba(124, 179, 66, 0.1);
+            color: var(--accent);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+        
+        .treatment-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            border-left: 4px solid var(--accent);
+        }
+
+        .treatment-title {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .treatment-detail {
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .treatment-detail strong {
+            color: var(--primary);
+        }
+        
+        .detection-history {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .detection-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .detection-history::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .detection-history::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 3px;
+        }
+        
+        .detection-item {
+            background: #ffffff;
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--info);
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .detection-item:hover {
+            transform: translateX(5px);
+        }
+
+        .detection-item-disease {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .detection-item-time {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .confidence-badge {
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .confidence-high {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success);
+        }
+
+        .confidence-medium {
+            background: rgba(255, 193, 7, 0.1);
+            color: var(--warning);
+        }
+
+        .confidence-low {
+            background: rgba(108, 117, 125, 0.1);
+            color: var(--text-muted);
+        }
+        
+        .loading-spinner {
+            display: none;
+            margin: 2rem auto;
+            text-align: center;
+        }
+
+        .spinner-custom {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(124, 179, 66, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 300px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        @media (max-width: 768px) {
+            .camera-container {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-camera {
+                width: 100%;
+                max-width: 280px;
+                margin-bottom: 0.5rem;
+            }
+
+            .detection-panel {
+                padding: 1.5rem;
+            }
+
+            .detection-result {
+                padding: 1rem;
+                min-height: 150px;
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hover-lift {
+            transition: var(--transition);
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="#" onclick="showAlert('Dashboard feature coming soon!', 'info')">
+                <i class="fas fa-leaf"></i> PlantDoc AI
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#" onclick="showAlert('Dashboard feature coming soon!', 'info')">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link" href="#" onclick="showAlert('Upload feature coming soon!', 'info')">
+                    <i class="fas fa-upload"></i> Upload
+                </a>
+                <a class="nav-link" href="#" onclick="showAlert('Logout feature coming soon!', 'info')">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="camera-container fade-in-up">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-video"></i> Real-time Disease Detection
+                </h2>
+                <p class="section-subtitle">
+                    Point your camera at a plant leaf to detect diseases in real-time with advanced AI analysis
+                </p>
+            </div>
+            
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="text-center">
+                        <video id="video" autoplay playsinline class="hover-lift"></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        
+                        <div class="controls">
+                            <button id="startBtn" class="btn-camera">
+                                <i class="fas fa-play"></i> Start Camera
+                            </button>
+                            <button id="stopBtn" class="btn-camera btn-stop" style="display: none;">
+                                <i class="fas fa-stop"></i> Stop Camera
+                            </button>
+                            <button id="saveBtn" class="btn-camera btn-save" style="display: none;">
+                                <i class="fas fa-save"></i> Save Detection
+                            </button>
+                        </div>
+                        
+                        <div class="status-container">
+                            <span class="status-indicator" id="statusIndicator"></span>
+                            <span id="statusText">Camera Ready</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="detection-panel hover-lift">
+                        <h5 class="panel-title">
+                            <i class="fas fa-microscope"></i> Detection Results
+                        </h5>
+                        
+                        <div id="detectionResult" class="detection-result">
+                            <div class="empty-state">
+                                <i class="fas fa-leaf"></i>
+                                <p>Start camera to begin real-time detection</p>
+                            </div>
+                        </div>
+                        
+                        <div class="loading-spinner" id="loadingSpinner">
+                            <div class="spinner-custom"></div>
+                            <div class="loading-text">Analyzing plant health...</div>
+                        </div>
+                        
+                        <div id="treatmentInfo" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="detection-panel hover-lift">
+                        <h6 class="panel-title">
+                            <i class="fas fa-history"></i> Recent Detections
+                        </h6>
+                        <div id="detectionHistory" class="detection-history">
+                            <div class="empty-state">
+                                <i class="fas fa-clock"></i>
+                                <p>No detections yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        class RealTimePlantDetection {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.saveBtn = document.getElementById('saveBtn');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+                this.detectionResult = document.getElementById('detectionResult');
+                this.treatmentInfo = document.getElementById('treatmentInfo');
+                this.detectionHistory = document.getElementById('detectionHistory');
+                this.loadingSpinner = document.getElementById('loadingSpinner');
+                
+                this.stream = null;
+                this.isDetecting = false;
+                this.detectionInterval = null;
+                this.lastDetection = null;
+                this.detectionCount = 0;
+                this.history = [];
+                
+                // Mock diseases for demonstration
+                this.mockDiseases = [
+                    { name: "Bacterial Leaf Spot", confidence: 87, severity: "Moderate", treatment: "Apply copper-based fungicide spray every 7-10 days. Remove affected leaves and improve air circulation." },
+                    { name: "Powdery Mildew", confidence: 92, severity: "Mild", treatment: "Use neem oil spray or baking soda solution. Ensure proper spacing between plants for air flow." },
+                    { name: "Leaf Rust", confidence: 78, severity: "Severe", treatment: "Apply systemic fungicide immediately. Remove all infected leaves and dispose properly." },
+                    { name: "Healthy Plant", confidence: 95, severity: "None", treatment: "Plant appears healthy. Continue regular care and monitoring." },
+                    { name: "Anthracnose", confidence: 83, severity: "Moderate", treatment: "Prune affected areas and apply appropriate fungicide treatment as directed." }
+                ];
+                
+                this.initEventListeners();
+                this.updateStatus('inactive', 'Camera Ready');
+            }
+            
+            initEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startCamera());
+                this.stopBtn.addEventListener('click', () => this.stopCamera());
+                this.saveBtn.addEventListener('click', () => this.saveDetection());
+            }
+            
+            async startCamera() {
+                try {
+                    this.updateStatus('processing', 'Starting camera...');
+                    
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'environment'
+                        }
+                    });
+                    
+                    this.video.srcObject = this.stream;
+                    this.video.play();
+                    
+                    this.video.onloadedmetadata = () => {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    };
+                    
+                    this.startBtn.style.display = 'none';
+                    this.stopBtn.style.display = 'inline-block';
+                    this.saveBtn.style.display = 'inline-block';
+                    
+                    this.updateStatus('active', 'Camera active - Detecting diseases...');
+                    this.startDetection();
+                    
+                } catch (error) {
+                    console.error('Error starting camera:', error);
+                    this.updateStatus('inactive', 'Camera access denied');
+                    showAlert('Could not access camera. Please ensure camera permissions are granted.', 'warning');
+                }
+            }
+            
+            stopCamera() {
+                if (this.stream) {vitro
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                
+                if (this.detectionInterval) {
+                    clearInterval(this.detectionInterval);
+                    this.detectionInterval = null;
+                }
+                
+                this.isDetecting = false;
+                this.startBtn.style.display = 'inline-block';
+                this.stopBtn.style.display = 'none';
+                this.saveBtn.style.display = 'none';
+                
+                this.updateStatus('inactive', 'Camera stopped');
+                this.detectionResult.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-video-slash"></i>
+                        <p>Camera stopped</p>
+                    </div>
+                `;
+            }
+            
+            startDetection() {
+                this.isDetecting = true;
+                this.detectionInterval = setInterval(() => {
+                    if (this.isDetecting && this.video.readyState === 4) {
+                        this.processFrame();
+                    }
+                }, 3000);
+            }
+            
+            async processFrame() {
+                try {
+                    this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+                    const imageData = this.canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    this.loadingSpinner.style.display = 'block';
+                    this.updateStatus('processing', 'Analyzing plant health...');
+                    
+                    // Simulate API delay
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    // Mock detection result
+                    const mockResult = this.mockDiseases[Math.floor(Math.random() * this.mockDiseases.length)];
+                    const result = {
+                        success: true,
+                        predicted_class: mockResult.name,
+                        confidence: mockResult.confidence + Math.floor(Math.random() * 10) - 5,
+                        treatment_info: {
+                            disease: mockResult.name,
+                            severity: mockResult.severity,
+                            treatment: mockResult.treatment
+                        }
+                    };
+                    
+                    this.displayDetection(result);
+                    this.lastDetection = {
+                        ...result,
+                        image: imageData,
+                        timestamp: new Date()
+                    };
+                    this.updateStatus('active', 'Detection complete - Monitoring...');
+                    
+                } catch (error) {
+                    console.error('Error processing frame:', error);
+                    this.updateStatus('active', 'Processing error - Retrying...');
+                } finally {
+                    this.loadingSpinner.style.display = 'none';
+                }
+            }
+            
+            displayDetection(result) {
+                const confidence = Math.max(30, Math.min(100, Math.round(result.confidence)));
+                const disease = result.predicted_class;
+                
+                this.detectionCount++;
+                
+                this.detectionResult.innerHTML = `
+                    <div class="text-center">
+                        <div class="detection-disease">${disease}</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${confidence}%"></div>
+                        </div>
+                        <div class="confidence-text">Confidence: ${confidence}%</div>
+                        <div class="detection-count">Detection #${this.detectionCount}</div>
+                    </div>
+                `;
+                
+                if (result.treatment_info && confidence > 30) {
+                    this.treatmentInfo.style.display = 'block';
+                    this.treatmentInfo.innerHTML = `
+                        <div class="treatment-info">
+                            <div class="treatment-title">
+                                <i class="fas fa-prescription-bottle-alt"></i> Treatment Recommendation
+                            </div>
+                            <div class="treatment-detail">
+                                <strong>Disease:</strong> ${result.treatment_info.disease}
+                            </div>
+                            <div class="treatment-detail">
+                                <strong>Severity:</strong> ${result.treatment_info.severity}
+                            </div>
+                            <div class="treatment-detail">
+                                <strong>Treatment:</strong> ${result.treatment_info.treatment}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    this.treatmentInfo.style.display = 'none';
+                }
+                
+                this.addToHistory(result, confidence);
+            }
+            
+            addToHistory(result, confidence) {
+                this.history.unshift({
+                    disease: result.predicted_class,
+                    confidence: confidence,
+                    timestamp: new Date().toLocaleTimeString()
+                });
+                
+                if (this.history.length > 10) {
+                    this.history = this.history.slice(0, 10);
+                }
+                
+                this.updateHistoryDisplay();
+            }
+            
+            updateHistoryDisplay() {
+                if (this.history.length === 0) {
+                    this.detectionHistory.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-clock"></i>
+                            <p>No detections yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const historyHTML = this.history.map(item => `
+                    <div class="detection-item">
+                        <div class="detection-item-content">
+                            <div class="detection-item-disease">${item.disease}</div>
+                            <div class="detection-item-time">${item.timestamp}</div>
+                        </div>
+                        <div class="confidence-badge ${this.getConfidenceClass(item.confidence)}">
+                            ${item.confidence}%
+                        </div>
+                    </div>
+                `).join('');
+                
+                this.detectionHistory.innerHTML = historyHTML;
+            }
+            
+            getConfidenceClass(confidence) {
+                if (confidence > 70) return 'confidence-high';
+                if (confidence > 40) return 'confidence-medium';
+                return 'confidence-low';
+            }
+            
+            async saveDetection() {
+                if (!this.lastDetection) {
+                    showAlert('No detection to save!', 'warning');
+                    return;
+                }
+                
+                try {
+                    // Simulate save operation
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    showAlert('Detection saved successfully!', 'success');
+                } catch (error) {
+                    console.error('Error saving detection:', error);
+                    showAlert('Error saving detection', 'danger');
+                }
+            }
+            
+            updateStatus(type, text) {
+                this.statusIndicator.className = `status-indicator status-${type}`;
+                this.statusText.textContent = text;
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Initialize the application when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            new RealTimePlantDetection();
+        });
+    </script>
+</body>
+</html>

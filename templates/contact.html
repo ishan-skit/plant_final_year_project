@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - PlantCare AI | Get Expert Plant Care Support</title>
+    <meta name="description" content="Connect with PlantCare AI experts. Get plant care support, technical help, or share feedback. Multiple contact options available 24/7.">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Primary Nature-Inspired Color Palette */
+            --primary-forest: #1a4f3a;
+            --primary-sage: #87a96b;
+            --primary-mint: #b8d4c8;
+            --primary-cream: #f7f5f3;
+            
+            /* Secondary Accent Colors */
+            --accent-gold: #d4af37;
+            --accent-coral: #ff6b6b;
+            --accent-lavender: #9b59b6;
+            --accent-sky: #3498db;
+            
+            /* Neutral Tones */
+            --neutral-charcoal: #2c3e50;
+            --neutral-stone: #95a5a6;
+            --neutral-pearl: #ecf0f1;
+            --neutral-white: #ffffff;
+            
+            /* Gradients */
+            --gradient-primary: linear-gradient(135deg, var(--primary-forest) 0%, var(--primary-sage) 50%, var(--primary-mint) 100%);
+            --gradient-sunset: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            --gradient-ocean: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-forest: linear-gradient(135deg, var(--primary-forest) 0%, #2d5016 100%);
+            
+            /* Typography */
+            --font-primary: 'Inter', sans-serif;
+            --font-display: 'Playfair Display', serif;
+            
+            /* Shadows */
+            --shadow-soft: 0 4px 20px rgba(26, 79, 58, 0.1);
+            --shadow-medium: 0 8px 30px rgba(26, 79, 58, 0.15);
+            --shadow-strong: 0 15px 50px rgba(26, 79, 58, 0.2);
+            
+            /* Border Radius */
+            --radius-sm: 8px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            line-height: 1.6;
+            color: var(--neutral-charcoal);
+            background: var(--primary-cream);
+        }
+
+        
+
+        /* Enhanced Contact Hero Section */
+        .contact-hero {
+            background: var(--gradient-primary);
+            color: var(--neutral-white);
+            padding: 120px 0 100px;
+            position: relative;
+            overflow: hidden;
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .contact-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="botanical" width="50" height="50" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="3" fill="%23ffffff" opacity="0.1"/><path d="M15 15 Q20 10, 25 15 Q30 20, 35 15 Q30 25, 25 25 Q20 25, 15 15" fill="%23ffffff" opacity="0.08"/></pattern></defs><rect width="100" height="100" fill="url(%23botanical)"/></svg>');
+            animation: float 25s ease-in-out infinite;
+        }
+
+        .contact-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-cream) 0%, var(--neutral-pearl) 100%);
+            clip-path: polygon(0 100%, 100% 100%, 100% 0, 0 80%);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-15px) rotate(1deg); }
+            66% { transform: translateY(-8px) rotate(-1deg); }
+        }
+
+        .contact-hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-icon {
+            width: 140px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2.5rem;
+            backdrop-filter: blur(20px);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            animation: pulse-glow 4s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: rotate(45deg);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes shimmer {
+            0% { transform: rotate(45deg) translate(-200%, -200%); }
+            50% { transform: rotate(45deg) translate(0%, 0%); }
+            100% { transform: rotate(45deg) translate(200%, 200%); }
+        }
+
+        .hero-icon i {
+            font-size: 3.5rem;
+            color: var(--neutral-white);
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: 3.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Contact Methods Section */
+        .contact-methods {
+            background: linear-gradient(180deg, var(--primary-cream) 0%, var(--neutral-pearl) 100%);
+            padding: 100px 0;
+            position: relative;
+        }
+
+        .contact-card {
+            background: var(--neutral-white);
+            border-radius: var(--radius-lg);
+            padding: 3rem 2.5rem;
+            box-shadow: var(--shadow-soft);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(135, 169, 107, 0.1);
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+            backdrop-filter: blur(10px);
+        }
+
+        .contact-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: var(--gradient-primary);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+
+        .contact-card:hover::before {
+            transform: translateX(0);
+        }
+
+        .contact-card:hover {
+            transform: translateY(-20px) scale(1.02);
+            box-shadow: var(--shadow-strong);
+            border-color: var(--primary-sage);
+        }
+
+        .contact-icon {
+            width: 90px;
+            height: 90px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            color: var(--neutral-white);
+            font-size: 2.2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-medium);
+        }
+
+        .contact-icon::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg);
+            transition: transform 0.6s ease;
+        }
+
+        .contact-card:hover .contact-icon::after {
+            transform: rotate(45deg) translate(100%, 100%);
+        }
+
+        /* Main Contact Form */
+        .main-contact-form {
+            background: var(--neutral-white);
+            border-radius: var(--radius-xl);
+            padding: 4rem 3rem;
+            box-shadow: var(--shadow-medium);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(135, 169, 107, 0.1);
+        }
+
+        .main-contact-form::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: var(--gradient-primary);
+            background-size: 300% 100%;
+            animation: gradient-slide 4s linear infinite;
+        }
+
+        @keyframes gradient-slide {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .form-floating {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .form-floating .form-control {
+            height: 65px;
+            border: 2px solid var(--neutral-pearl);
+            border-radius: var(--radius-md);
+            padding: 1.2rem 1.5rem 0.8rem;
+            background: #fafbfc;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+            color: var(--neutral-charcoal);
+        }
+
+        .form-floating textarea.form-control {
+            height: 140px;
+            padding-top: 2rem;
+            resize: vertical;
+            min-height: 140px;
+        }
+
+        .form-floating .form-control:focus {
+            border-color: var(--primary-sage);
+            background: var(--neutral-white);
+            box-shadow: 0 0 0 0.25rem rgba(135, 169, 107, 0.15);
+            transform: translateY(-3px);
+        }
+
+        .form-floating label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding: 1.2rem 1.5rem;
+            pointer-events: none;
+            color: var(--neutral-stone);
+            transition: all 0.3s ease;
+            transform-origin: 0 0;
+            font-weight: 500;
+        }
+
+        .form-floating .form-control:focus ~ label,
+        .form-floating .form-control:not(:placeholder-shown) ~ label {
+            opacity: 0.8;
+            transform: scale(0.85) translateY(-0.8rem) translateX(0.15rem);
+            color: var(--primary-sage);
+        }
+
+        /* Contact Type Selector */
+        .contact-type-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .contact-type-option {
+            background: var(--neutral-pearl);
+            border: 3px solid transparent;
+            border-radius: var(--radius-md);
+            padding: 1.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .contact-type-option::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: linear-gradient(135deg, rgba(135, 169, 107, 0.1), rgba(26, 79, 58, 0.1));
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.5s ease;
+        }
+
+        .contact-type-option:hover::before,
+        .contact-type-option.active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .contact-type-option:hover,
+        .contact-type-option.active {
+            border-color: var(--primary-sage);
+            background: var(--neutral-white);
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .contact-type-option i {
+            display: block;
+            font-size: 1.8rem;
+            margin-bottom: 0.8rem;
+            color: var(--primary-sage);
+            position: relative;
+            z-index: 2;
+        }
+
+        .contact-type-option span {
+            font-weight: 600;
+            color: var(--neutral-charcoal);
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Priority Selector */
+        .priority-selector {
+            display: flex;
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .priority-option {
+            flex: 1;
+            min-width: 140px;
+            padding: 1rem 1.2rem;
+            border: 3px solid transparent;
+            border-radius: var(--radius-md);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--neutral-white);
+            position: relative;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .priority-option.low { border-color: var(--primary-sage); }
+        .priority-option.medium { border-color: var(--accent-gold); }
+        .priority-option.high { border-color: var(--accent-coral); }
+
+        .priority-option:hover,
+        .priority-option.active {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .priority-option.low.active { background: var(--primary-sage); color: white; }
+        .priority-option.medium.active { background: var(--accent-gold); color: white; }
+        .priority-option.high.active { background: var(--accent-coral); color: white; }
+
+        /* Submit Button */
+        .submit-button {
+            background: var(--gradient-primary);
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 1.2rem 4rem;
+            color: var(--neutral-white);
+            font-weight: 600;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            margin-top: 1.5rem;
+            box-shadow: var(--shadow-medium);
+        }
+
+        .submit-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .submit-button:hover::before {
+            left: 100%;
+        }
+
+        .submit-button:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-strong);
+            background: linear-gradient(135deg, var(--primary-sage), var(--primary-forest));
+        }
+
+        /* Contact Information Sidebar */
+        .contact-info-sidebar {
+            background: var(--gradient-forest);
+            border-radius: var(--radius-xl);
+            padding: 3rem;
+            color: var(--neutral-white);
+            position: sticky;
+            top: 2rem;
+            box-shadow: var(--shadow-medium);
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(15px);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(15px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1.5rem;
+            font-size: 1.4rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary-sage), var(--accent-sky));
+            color: var(--neutral-white);
+            padding: 0.8rem 1.5rem;
+            border-radius: var(--radius-lg);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-soft);
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--neutral-white);
+            border-radius: 50%;
+            margin-right: 0.8rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            background: linear-gradient(180deg, var(--neutral-pearl) 0%, var(--primary-cream) 100%);
+            padding: 100px 0;
+        }
+
+        .quick-action-card {
+            background: var(--neutral-white);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            text-align: center;
+            transition: all 0.4s ease;
+            border: 2px solid transparent;
+            height: 100%;
+            cursor: pointer;
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-action-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .quick-action-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .quick-action-card:hover {
+            border-color: var(--primary-sage);
+            transform: translateY(-15px);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .quick-action-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            color: var(--neutral-white);
+            font-size: 2rem;
+            box-shadow: var(--shadow-medium);
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .contact-hero {
+                padding: 80px 0 60px;
+            }
+            
+            .hero-icon {
+                width: 120px;
+                height: 120px;
+            }
+            
+            .main-contact-form {
+                padding: 2.5rem 2rem;
+                margin: 1rem;
+            }
+            
+            .contact-methods {
+                padding: 60px 0;
+            }
+            
+            .priority-selector {
+                flex-direction: column;
+            }
+            
+            .contact-info-sidebar {
+                position: static;
+                margin-top: 2rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .contact-type-selector {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .hero-icon i {
+                font-size: 3rem;
+            }
+            
+            .hero-title {
+                font-size: 2rem;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--neutral-pearl);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-sage);
+            border-radius: var(--radius-sm);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-forest);
+        }
+
+        /* Success Message */
+        .success-message {
+            background: linear-gradient(135deg, var(--primary-sage), var(--accent-sky));
+            color: var(--neutral-white);
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: slideInDown 0.6s ease;
+            box-shadow: var(--shadow-medium);
+        }
+
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading State */
+        .form-loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            position: relative;
+        }
+
+        .typing-indicator::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--neutral-white);
+            animation: typing 1.6s infinite ease-in-out;
+        }
+
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container mb-4">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+    </a>
+</div>
+
+    <!-- Contact Hero Section -->
+    <section class="contact-hero">
+        <div class="contact-hero-content">
+            <div class="container text-center">
+                <div class="hero-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h1 class="hero-title">Let's Connect & Grow Together</h1>
+                <p class="hero-subtitle">Your plant care journey matters to us. Whether you need expert advice, technical support, or want to share your success stories, we're here to help you flourish.</p>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    Online & Ready to Help
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Methods -->
+    <section class="contact-methods">
+        <div class="container">
+            <div class="row text-center mb-5">
+                <div class="col-lg-8 mx-auto">
+                    <h2 class="display-5 mb-3" style="color: var(--primary-forest); font-family: var(--font-display);">Choose Your Preferred Way to Connect</h2>
+                    <p class="lead" style="color: var(--neutral-stone);">Multiple channels to ensure you get the support you need, when you need it.</p>
+                </div>
+            </div>
+            
+            <div class="row g-4 mb-5">
+                <div class="col-lg-4 col-md-6">
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h4 class="mb-3" style="color: var(--primary-forest);">AI Plant Doctor</h4>
+                        <p class="mb-3" style="color: var(--neutral-stone);">Get instant plant diagnosis and care recommendations from our advanced AI system.</p>
+                        <div class="mb-3">
+                            <small style="color: var(--primary-sage);"><i class="fas fa-clock me-1"></i>Available 24/7</small>
+                        </div>
+                        <a href="#" class="btn" style="background: var(--gradient-primary); color: white; border-radius: var(--radius-sm);">Try AI Diagnosis</a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 col-md-6">
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h4 class="mb-3" style="color: var(--primary-forest);">Video Consultation</h4>
+                        <p class="mb-3" style="color: var(--neutral-stone);">Book a live video session with our certified plant care experts for personalized guidance.</p>
+                        <div class="mb-3">
+                            <small style="color: var(--accent-gold);"><i class="fas fa-calendar me-1"></i>By Appointment</small>
+                        </div>
+                        <a href="#" class="btn" style="background: var(--accent-gold); color: white; border-radius: var(--radius-sm);">Schedule Call</a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 col-md-6">
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h4 class="mb-3" style="color: var(--primary-forest);">Live Chat Support</h4>
+                        <p class="mb-3" style="color: var(--neutral-stone);">Connect instantly with our support team through our live chat system for quick assistance.</p>
+                        <div class="mb-3">
+                            <small style="color: var(--accent-sky);"><i class="fas fa-users me-1"></i>Response in 2 min</small>
+                        </div>
+                        <a href="#" class="btn" style="background: var(--accent-sky); color: white; border-radius: var(--radius-sm);">Start Chat</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Contact Form -->
+    <section class="py-5" style="background: linear-gradient(180deg, var(--neutral-pearl) 0%, var(--primary-cream) 100%);">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="main-contact-form">
+                        <div class="text-center mb-4">
+                            <h3 class="mb-3" style="color: var(--primary-forest); font-family: var(--font-display);">Send Us a Detailed Message</h3>
+                            <p style="color: var(--neutral-stone);">Tell us about your plant care needs, and we'll get back to you with expert advice.</p>
+                        </div>
+                        
+                        <form id="contactForm">
+                            <!-- Contact Type Selector -->
+                            <!-- Contact Type Selector -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold mb-3" style="color: var(--primary-forest);">What can we help you with?</label>
+                                <div class="contact-type-selector">
+                                    <div class="contact-type-option" data-type="plant-care">
+                                        <i class="fas fa-seedling"></i>
+                                        <span>Plant Care</span>
+                                    </div>
+                                    <div class="contact-type-option" data-type="technical">
+                                        <i class="fas fa-cog"></i>
+                                        <span>Technical Support</span>
+                                    </div>
+                                    <div class="contact-type-option" data-type="feedback">
+                                        <i class="fas fa-star"></i>
+                                        <span>Feedback</span>
+                                    </div>
+                                    <div class="contact-type-option" data-type="partnership">
+                                        <i class="fas fa-handshake"></i>
+                                        <span>Partnership</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Priority Level -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold mb-3" style="color: var(--primary-forest);">Priority Level</label>
+                                <div class="priority-selector">
+                                    <div class="priority-option low" data-priority="low">
+                                        <i class="fas fa-leaf"></i>
+                                        <div>Low</div>
+                                        <small>General inquiry</small>
+                                    </div>
+                                    <div class="priority-option medium" data-priority="medium">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <div>Medium</div>
+                                        <small>Need help soon</small>
+                                    </div>
+                                    <div class="priority-option high" data-priority="high">
+                                        <i class="fas fa-fire"></i>
+                                        <div>High</div>
+                                        <small>Urgent plant emergency</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Form Fields -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        <input type="text" class="form-control" id="firstName" placeholder="First Name" required>
+                                        <label for="firstName">First Name</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        <input type="text" class="form-control" id="lastName" placeholder="Last Name" required>
+                                        <label for="lastName">Last Name</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-floating">
+                                <input type="email" class="form-control" id="email" placeholder="Email Address" required>
+                                <label for="email">Email Address</label>
+                            </div>
+
+                            <div class="form-floating">
+                                <input type="tel" class="form-control" id="phone" placeholder="Phone Number (Optional)">
+                                <label for="phone">Phone Number (Optional)</label>
+                            </div>
+
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="subject" placeholder="Subject" required>
+                                <label for="subject">Subject</label>
+                            </div>
+
+                            <div class="form-floating">
+                                <textarea class="form-control" id="message" placeholder="Your Message" required></textarea>
+                                <label for="message">Tell us more about your plant care needs...</label>
+                            </div>
+
+                            <!-- File Upload -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold" style="color: var(--primary-forest);">Upload Plant Photos (Optional)</label>
+                                <div class="form-control" style="height: auto; padding: 2rem; border: 2px dashed var(--primary-sage); background: #f8f9fa;">
+                                    <div class="text-center">
+                                        <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color: var(--primary-sage);"></i>
+                                        <p class="mb-0">Drag & drop your plant photos here or <span style="color: var(--primary-sage); cursor: pointer;">browse files</span></p>
+                                        <small class="text-muted">JPG, PNG files up to 10MB</small>
+                                    </div>
+                                    <input type="file" id="plantPhotos" multiple accept="image/*" style="display: none;">
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="submit-button">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                Send Message
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Contact Information Sidebar -->
+                <div class="col-lg-4">
+                    <div class="contact-info-sidebar">
+                        <h4 class="mb-4">Get in Touch</h4>
+                        
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <h6>Email Us</h6>
+                                <p class="mb-0">support@plantcareai.com</p>
+                            </div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div>
+                                <h6>Call Us</h6>
+                                <p class="mb-0">+1 (555) 123-PLANT</p>
+                            </div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <h6>Response Time</h6>
+                                <p class="mb-0">Within 24 hours</p>
+                            </div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div>
+                                <h6>Location</h6>
+                                <p class="mb-0">Serving plant lovers worldwide</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Contact Form JavaScript -->
+    <script>
+        // Contact type selector
+        document.querySelectorAll('.contact-type-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.contact-type-option').forEach(o => o.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Priority selector
+        document.querySelectorAll('.priority-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.priority-option').forEach(o => o.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // File upload handling
+        document.querySelector('[style*="cursor: pointer"]').addEventListener('click', function() {
+            document.getElementById('plantPhotos').click();
+        });
+
+        // Form submission
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Add loading state
+            this.classList.add('form-loading');
+            const submitBtn = this.querySelector('.submit-button');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<div class="typing-indicator"></div> Sending...';
+            
+            // Simulate form submission
+            setTimeout(() => {
+                this.classList.remove('form-loading');
+                submitBtn.innerHTML = originalText;
+                
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.className = 'success-message';
+                successMsg.innerHTML = `
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h5>Message Sent Successfully!</h5>
+                    <p class="mb-0">Thank you for reaching out. We'll get back to you within 24 hours.</p>
+                `;
+                this.insertBefore(successMsg, this.firstChild);
+                
+                // Reset form
+                this.reset();
+                document.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+                
+                // Remove success message after 5 seconds
+                setTimeout(() => successMsg.remove(), 5000);
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

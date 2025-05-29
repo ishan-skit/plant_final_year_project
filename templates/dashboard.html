@@ -1,0 +1,1399 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Advanced Dashboard - PlantCare AI</title>
+{% endblock %}
+
+
+{% block head %}
+<head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        background: var(--dark-gradient);
+        min-height: 100vh;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #ffffff;
+        overflow-x: hidden;
+    }
+
+    .analytics-section {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 25px;
+        padding: 3rem;
+        margin-bottom: 3rem;
+        box-shadow: var(--shadow-primary);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .analytics-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(from 0deg, transparent, rgba(76, 175, 80, 0.1), transparent);
+        animation: rotate 40s linear infinite;
+    }
+
+    .section-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        position: relative;
+        z-index: 2;
+        background: var(--accent-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 2rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 15px;
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .predictions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+        align-items: start;
+    }
+
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .empty-state-advanced {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 25px;
+        padding: 5rem 3rem;
+        text-align: center;
+        box-shadow: var(--shadow-primary);
+        position: relative;
+        overflow: hidden;
+        margin: 3rem 0;
+    }
+
+    .empty-state-advanced::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="2" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="200" height="200" fill="url(%23dots)"/></svg>');
+        animation: float 15s ease-in-out infinite;
+    }
+
+    .empty-icon {
+        font-size: 6rem;
+        background: var(--accent-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 2rem;
+        animation: bounce 2s ease-in-out infinite;
+        position: relative;
+        z-index: 2;
+    }
+
+ 
+
+    .empty-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .empty-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.8;
+        margin-bottom: 3rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .modal-advanced .modal-content {
+        background: var(--dark-gradient);
+        border: 1px solid var(--glass-border);
+        border-radius: 25px;
+        box-shadow: var(--shadow-hover);
+        color: white;
+    }
+
+    .modal-advanced .modal-header {
+        background: var(--primary-gradient);
+        border-radius: 25px 25px 0 0;
+        border-bottom: 1px solid var(--glass-border);
+    }
+
+    .modal-advanced .modal-body {
+        backdrop-filter: blur(20px);
+    }
+
+    .treatment-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 2rem;
+        border-left: 5px solid #4caf50;
+    }
+
+    .progress-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 2rem;
+    }
+
+    .progress-ring-circle {
+        stroke: var(--accent-gradient);
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1s ease-in-out;
+        filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.5));
+    }
+
+    .health-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin: 2rem 0;
+        padding: 1.5rem;
+        background: var(--glass-bg);
+        border-radius: 15px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .indicator-dot {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    .indicator-healthy { background: #4caf50; }
+    .indicator-warning { background: #ff9800; }
+    .indicator-danger { background: #f44336; }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    .floating-action-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 70px;
+        height: 70px;
+        background: var(--accent-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        text-decoration: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transition: var(--transition-bounce);
+        z-index: 1000;
+        animation: float-btn 3s ease-in-out infinite;
+    }
+
+
+    .floating-action-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        color: white;
+    }
+
+    .sparkle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: #4caf50;
+        border-radius: 50%;
+        animation: sparkle 2s ease-in-out infinite;
+    }
+
+    /* Timeline Styles */
+    .timeline-container {
+        position: relative;
+        padding: 2rem 0;
+    }
+    
+    .timeline {
+        position: relative;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .timeline::after {
+        content: '';
+        position: absolute;
+        width: 6px;
+        background: linear-gradient(to bottom, var(--accent-gradient));
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        margin-left: -3px;
+        border-radius: 10px;
+    }
+    
+    .timeline-item {
+        padding: 10px 40px;
+        position: relative;
+        width: 50%;
+        box-sizing: border-box;
+    }
+    
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        width: 25px;
+        height: 25px;
+        right: -12px;
+        background-color: white;
+        border: 4px solid #4CAF50;
+        top: 15px;
+        border-radius: 50%;
+        z-index: 1;
+    }
+    
+    .left {
+        left: 0;
+    }
+    
+    .right {
+        left: 50%;
+    }
+    
+    .left::before {
+        content: " ";
+        height: 0;
+        position: absolute;
+        top: 22px;
+        width: 0;
+        z-index: 1;
+        right: 30px;
+        border: medium solid rgba(255, 255, 255, 0.1);
+        border-width: 10px 0 10px 10px;
+        border-color: transparent transparent transparent rgba(255, 255, 255, 0.1);
+    }
+    
+    .right::before {
+        content: " ";
+        height: 0;
+        position: absolute;
+        top: 22px;
+        width: 0;
+        z-index: 1;
+        left: 30px;
+        border: medium solid rgba(255, 255, 255, 0.1);
+        border-width: 10px 10px 10px 0;
+        border-color: transparent rgba(255, 255, 255, 0.1) transparent transparent;
+    }
+    
+    .right::after {
+        left: -12px;
+    }
+    
+    .timeline-content {
+        padding: 20px 30px;
+        background: rgba(255, 255, 255, 0.1);
+        position: relative;
+        border-radius: 6px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .timeline-content:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    
+    .timeline-date {
+        color: #4CAF50;
+        font-weight: bold;
+    }
+    
+    .timeline-title {
+        margin-top: 0;
+        color: white;
+    }
+    
+    .timeline-text {
+        margin-bottom: 0;
+        opacity: 0.8;
+    }
+    
+    /* Widget Styles */
+    .weather-widget {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        margin-bottom: 2rem;
+    }
+    
+    .weather-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #FFC107;
+    }
+    
+    .weather-temp {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .weather-desc {
+        opacity: 0.8;
+        margin-bottom: 1rem;
+    }
+    
+    .weather-details {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1rem;
+    }
+    
+    .weather-detail {
+        text-align: center;
+    }
+    
+    .weather-detail i {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #4CAF50;
+    }
+    
+    .plant-care-tips {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        margin-bottom: 2rem;
+    }
+    
+    .tip-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .tip-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .tip-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(76, 175, 80, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        color: #4CAF50;
+    }
+    
+    .tip-content h5 {
+        margin-bottom: 0.3rem;
+    }
+    
+    .tip-content p {
+        margin-bottom: 0;
+        opacity: 0.8;
+        font-size: 0.9rem;
+    }
+    
+    /* AI Assistant */
+    .ai-assistant {
+        position: fixed;
+        bottom: 110px;
+        right: 30px;
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #2196F3, #03A9F4);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        text-decoration: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transition: var(--transition-bounce);
+        z-index: 1000;
+        animation: float-btn 3s ease-in-out infinite;
+    }
+    
+    .ai-assistant:hover {
+        transform: scale(1.1);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 25px;
+        height: 25px;
+        background: #F44336;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Severity Meter */
+    .severity-meter {
+        height: 10px;
+        background: linear-gradient(to right, #4CAF50, #FFC107, #F44336);
+        border-radius: 5px;
+        margin-top: 1rem;
+        position: relative;
+    }
+    
+    .severity-indicator {
+        position: absolute;
+        top: -5px;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .severity-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    /* Plant Selector */
+    .plant-selector {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .plant-option {
+        padding: 0.8rem 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+    
+    .plant-option:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .plant-option.active {
+        background: rgba(76, 175, 80, 0.3);
+        border-color: #4CAF50;
+    }
+    
+    .plant-option i {
+        margin-right: 0.5rem;
+    }
+    
+    /* Quick Actions */
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .quick-action {
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+    
+    .quick-action:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-3px);
+    }
+    
+    .quick-action i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .quick-action span {
+        display: block;
+        font-size: 0.9rem;
+    }
+    
+    /* Disease Trend */
+    .disease-trend {
+        height: 300px;
+        margin-top: 2rem;
+    }
+    
+    /* Treatment Steps */
+    .treatment-steps {
+        counter-reset: step;
+        margin-top: 2rem;
+        flex-grow: 1;
+        overflow-y: auto;
+        max-height: 200px;
+        padding-right: 10px;
+    }
+    
+    .treatment-step {
+        position: relative;
+        padding-left: 3rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .treatment-step::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 30px;
+        height: 30px;
+        background: #4CAF50;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .treatment-step h5 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .treatment-step p {
+        opacity: 0.8;
+        margin-bottom: 0;
+    }
+
+    /* Custom scrollbar for treatment steps */
+    .treatment-steps::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .treatment-steps::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .treatment-steps::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+    }
+
+    /* Loading Spinner */
+    #loadingSpinner {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+    }
+
+    /* Error Message */
+    .alert-danger {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .hero-title { font-size: 2.5rem; }
+        .hero-subtitle { font-size: 1.1rem; }
+        .stats-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+        .predictions-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+        .analytics-section { padding: 2rem 1.5rem; }
+        .chart-container { height: 300px; padding: 1rem; }
+        .advanced-stats-card { padding: 2rem 1.5rem; }
+        .prediction-card-advanced { padding: 1.5rem; }
+        .empty-state-advanced { padding: 3rem 2rem; }
+        .floating-action-btn { bottom: 20px; right: 20px; width: 60px; height: 60px; }
+        .ai-assistant { bottom: 90px; right: 20px; width: 60px; height: 60px; }
+    }
+
+    @media (max-width: 576px) {
+        .timeline-item {
+            width: 100%;
+            padding: 10px 20px 10px 40px;
+        }
+        
+        .timeline-item::after {
+            left: 12px;
+        }
+        
+        .left::before, .right::before {
+            display: none;
+        }
+        
+        .right {
+            left: 0;
+        }
+
+        .plant-selector {
+            gap: 0.5rem;
+        }
+
+        .plant-option {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .quick-actions {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner-border text-light" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+
+    <!-- Advanced Dashboard Hero -->
+    <div class="dashboard-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <i class="fas fa-leaf me-3"></i>PlantCare AI Pro
+            </h1>
+            <p class="hero-subtitle">Next-Generation Plant Health Intelligence Platform</p>
+            <div class="health-indicator">
+                <div class="indicator-dot indicator-healthy"></div>
+                <span>System Status: Optimal</span>
+                <div class="indicator-dot indicator-healthy"></div>
+            </div>
+        </div>
+        <div class="sparkle" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+        <div class="sparkle" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+        <div class="sparkle" style="top: 30%; right: 20%; animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Plant Selector -->
+    <div class="plant-selector">
+        <div class="plant-option active" data-category="all">
+            <i class="fas fa-leaf"></i> All Plants
+                <div class="plant-option" data-category="fruit">
+            <i class="fas fa-apple-alt"></i> Fruit Plants
+        </div>
+        <div class="plant-option" data-category="vegetable">
+            <i class="fas fa-carrot"></i> Vegetables
+        </div>
+        <div class="plant-option" data-category="ornamental">
+            <i class="fas fa-spa"></i> Ornamentals
+        </div>
+        <div class="plant-option" data-category="tree">
+            <i class="fas fa-tree"></i> Trees
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <div class="quick-action" onclick="location.href='{{ url_for('predict') }}'">
+            <i class="fas fa-camera"></i>
+            <span>New Scan</span>
+        </div>
+        <div class="quick-action" onclick="showTreatmentGuide()">
+            <i class="fas fa-book-medical"></i>
+            <span>Treatment Guide</span>
+        </div>
+        <div class="quick-action" onclick="showDiseaseLibrary()">
+            <i class="fas fa-book"></i>
+            <span>Disease Library</span>
+        </div>
+        <div class="quick-action" onclick="showReminders()">
+            <i class="fas fa-bell"></i>
+            <span>Care Reminders</span>
+        </div>
+        <div class="quick-action" onclick="showCommunity()">
+            <i class="fas fa-users"></i>
+            <span>Community</span>
+        </div>
+    </div>
+
+    <!-- Advanced Stats Grid -->
+    <div class="stats-grid">
+        <div class="advanced-stats-card">
+            <div class="stats-icon-wrapper">
+                <div class="stats-icon-bg"></div>
+                <i class="fas fa-camera stats-icon"></i>
+            </div>
+            <div class="stats-number">{{ predictions|length if predictions else 0 }}</div>
+            <div class="stats-label">Total Scans</div>
+        </div>
+        <div class="advanced-stats-card">
+            <div class="stats-icon-wrapper">
+                <div class="stats-icon-bg"></div>
+                <i class="fas fa-leaf stats-icon"></i>
+            </div>
+            <div class="stats-number">
+                {% set healthy_count = 0 %}
+                {% if predictions %}
+                    {% for p in predictions %}
+                        {% if 'healthy' in p[1]|lower %}
+                            {% set healthy_count = healthy_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {{ healthy_count }}
+            </div>
+            <div class="stats-label">Healthy Plants</div>
+        </div>
+        <div class="advanced-stats-card">
+            <div class="stats-icon-wrapper">
+                <div class="stats-icon-bg"></div>
+                <i class="fas fa-exclamation-triangle stats-icon"></i>
+            </div>
+            <div class="stats-number">
+                {% set disease_count = 0 %}
+                {% if predictions %}
+                    {% for p in predictions %}
+                        {% if 'healthy' not in p[1]|lower %}
+                            {% set disease_count = disease_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {{ disease_count }}
+            </div>
+            <div class="stats-label">Issues Found</div>
+        </div>
+        <div class="advanced-stats-card">
+            <div class="stats-icon-wrapper">
+                <div class="stats-icon-bg"></div>
+                <i class="fas fa-chart-line stats-icon"></i>
+            </div>
+            <div class="stats-number">
+                {% if predictions and predictions|length > 0 %}
+                    {% set total_confidence = 0 %}
+                    {% for p in predictions %}
+                        {% set total_confidence = total_confidence + p[2] %}
+                    {% endfor %}
+                    {{ (total_confidence / predictions|length)|round(0)|int }}%
+                {% else %}
+                    0%
+                {% endif %}
+            </div>
+            <div class="stats-label">Avg Confidence</div>
+        </div>
+    </div>
+
+    <!-- Weather and Care Tips Row -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="weather-widget">
+                <i class="fas fa-sun weather-icon"></i>
+                <div class="weather-temp">24°C</div>
+                <div class="weather-desc">Sunny with light breeze</div>
+                <div class="health-indicator">
+                    <div class="indicator-dot indicator-healthy"></div>
+                    <span>Ideal Plant Conditions</span>
+                </div>
+                <div class="weather-details">
+                    <div class="weather-detail">
+                        <i class="fas fa-tint"></i>
+                        <span>65%</span>
+                    </div>
+                    <div class="weather-detail">
+                        <i class="fas fa-wind"></i>
+                        <span>12 km/h</span>
+                    </div>
+                    <div class="weather-detail">
+                        <i class="fas fa-cloud-rain"></i>
+                        <span>10%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="plant-care-tips">
+                <h5 class="text-success mb-3"><i class="fas fa-lightbulb me-2"></i>Today's Care Tips</h5>
+                <div class="tip-item">
+                    <div class="tip-icon">
+                        <i class="fas fa-tint"></i>
+                    </div>
+                    <div class="tip-content">
+                        <h5>Watering</h5>
+                        <p>Check soil moisture before watering - top inch should be dry</p>
+                    </div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">
+                        <i class="fas fa-sun"></i>
+                    </div>
+                    <div class="tip-content">
+                        <h5>Sunlight</h5>
+                        <p>Rotate plants for even sun exposure</p>
+                    </div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">
+                        <i class="fas fa-bug"></i>
+                    </div>
+                    <div class="tip-content">
+                        <h5>Pest Check</h5>
+                        <p>Inspect undersides of leaves for pests</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="analytics-section" style="height: 100%;">
+                <h5 class="section-title" style="font-size: 1.5rem;">
+                    <i class="fas fa-chart-pie me-2"></i>Quick Stats
+                </h5>
+                <div class="disease-trend">
+                    <canvas id="quickStatsChart"></canvas>
+                </div>
+                <div class="health-indicator">
+                    <i class="fas fa-clock me-2"></i>
+                    <span>Last scan: {{ predictions[0][3] if predictions else 'Never' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <i class="fas fa-history me-3"></i>Plant Health Timeline
+        </h2>
+        <div class="timeline-container">
+            <div class="timeline">
+                {% if predictions %}
+                    {% for p in predictions|reverse %}
+                    <div class="timeline-item {% if loop.index % 2 == 0 %}right{% else %}left{% endif %}">
+                        <div class="timeline-content" onclick="showAdvancedDetails('{{ p[1] }}', {{ p[2] }}, '{{ p[3] }}', '{{ url_for('static', filename='uploads/' ~ p[0]) }}')">
+                            <div class="timeline-date">{{ p[3] }}</div>
+                            <h3 class="timeline-title">{{ p[1] }}</h3>
+                            <div class="severity-meter">
+                                <div class="severity-indicator" style="left: {{ p[2] }}%;"></div>
+                                <div class="severity-labels">
+                                    <span>Low</span>
+                                    <span>Medium</span>
+                                    <span>High</span>
+                                </div>
+                            </div>
+                            <p class="timeline-text">Confidence: {{ p[2]|round(1) }}%</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state-advanced" style="margin: 2rem 0;">
+                        <i class="fas fa-clock empty-icon"></i>
+                        <h3 class="empty-title">No History Yet</h3>
+                        <p class="empty-subtitle">Your plant health timeline will appear here after scans</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Predictions Grid -->
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <i class="fas fa-microscope me-3"></i>Recent Plant Diagnoses
+        </h2>
+        
+        {% if predictions and predictions|length > 0 %}
+            <div class="predictions-grid">
+                {% for p in predictions %}
+                <div class="prediction-card-advanced">
+                    <img src="{{ url_for('static', filename='uploads/' ~ p[0]) }}" 
+                         alt="Plant Analysis" 
+                         class="leaf-image-advanced">
+                    <h4 class="disease-title-advanced">{{ p[1] }}</h4>
+                    <div class="text-center mb-3">
+                        <span class="confidence-badge-advanced 
+                            {% if p[2] >= 90 %}confidence-high
+                            {% elif p[2] >= 70 %}confidence-medium
+                            {% else %}confidence-low{% endif %}">
+                            {{ p[2]|round(1) }}% Confidence
+                        </span>
+                    </div>
+                    <div class="treatment-steps">
+                        <div class="treatment-step">
+                            <h5>Immediate Action</h5>
+                            <p>{{ getImmediateAction(p[1]) }}</p>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn-advanced btn-primary-advanced" 
+                                onclick="showAdvancedDetails('{{ p[1] }}', {{ p[2] }}, '{{ p[3] }}', '{{ url_for('static', filename='uploads/' ~ p[0]) }}')">
+                            <i class="fas fa-info-circle me-2"></i>Details
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state-advanced">
+                <i class="fas fa-seedling empty-icon"></i>
+                <h3 class="empty-title">Ready for Plant Analysis</h3>
+                <p class="empty-subtitle">Upload your first plant image to begin AI-powered health assessment</p>
+                <a href="{{ url_for('predict') }}" class="btn-advanced btn-primary-advanced" style="font-size: 1.1rem; padding: 1rem 3rem;">
+                    <i class="fas fa-camera me-2"></i>Start Scanning
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- AI Assistant Button -->
+<a href="#" class="ai-assistant" title="AI Plant Assistant" onclick="openAIAssistant()">
+    <i class="fas fa-robot"></i>
+    <div class="notification-badge">3</div>
+</a>
+
+<!-- Floating Action Button -->
+<a href="{{ url_for('predict') }}" class="floating-action-btn" title="New Scan">
+    <i class="fas fa-plus"></i>
+</a>
+
+<!-- Advanced Modal -->
+<div class="modal fade modal-advanced" id="advancedModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-microscope me-2"></i>Advanced Plant Analysis
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 text-center">
+                        <img id="modalImageAdvanced" src="" alt="Plant Analysis" class="img-fluid rounded shadow-lg mb-3">
+                        <div class="progress-ring">
+                            <svg class="progress-ring" width="120" height="120">
+                                <circle class="progress-ring-circle" stroke="url(#gradient)" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"/>
+                                <defs>
+                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#00c9ff;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#92fe9d;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; font-weight: bold;" id="confidenceText">0%</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h3 id="modalDiseaseAdvanced" class="disease-title-advanced mb-4"></h3>
+                        <div class="row mb-4">
+                            <div class="col-sm-6">
+                                <div class="health-indicator">
+                                    <i class="fas fa-calendar me-2"></i>
+                                    <span id="modalDateAdvanced"></span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="health-indicator">
+                                    <i class="fas fa-brain me-2"></i>
+                                    <span>AI Analysis</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="treatment-card">
+                            <h5 class="text-success mb-3">
+                                <i class="fas fa-prescription-bottle-alt me-2"></i>Treatment Protocol
+                            </h5>
+                            <p id="treatmentAdvanced" class="mb-0"></p>
+                        </div>
+                        <div class="treatment-card mt-3">
+                            <h5 class="text-info mb-3">
+                                <i class="fas fa-lightbulb me-2"></i>Prevention Tips
+                            </h5>
+                            <p id="preventionTips" class="mb-0"></p>
+                        </div>
+                        <div class="treatment-card mt-3">
+                            <h5 class="text-warning mb-3">
+                                <i class="fas fa-clipboard-list me-2"></i>Step-by-Step Treatment
+                            </h5>
+                            <div class="treatment-steps" id="stepByStepTreatment">
+                                <!-- Steps will be inserted here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.1);">
+                <button type="button" class="btn-advanced btn-secondary-advanced" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Close
+                </button>
+                <a href="{{ url_for('predict') }}" class="btn-advanced btn-primary-advanced">
+                    <i class="fas fa-camera me-2"></i>New Scan
+                </a>
+                <button type="button" class="btn-advanced btn-primary-advanced" onclick="downloadReport()">
+                    <i class="fas fa-download me-2"></i>Download Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Assistant Modal -->
+<div class="modal fade modal-advanced" id="aiAssistantModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-robot me-2"></i>AI Plant Assistant
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="aiChatContainer" style="height: 400px; overflow-y: auto; margin-bottom: 1rem;">
+                    <!-- Chat messages will appear here -->
+                </div>
+                <div class="input-group">
+                    <input type="text" id="aiChatInput" class="form-control bg-dark text-white" placeholder="Ask about plant care...">
+                    <button class="btn-advanced btn-primary-advanced" onclick="sendAIMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAdvancedDashboard();
+    createHealthChart();
+    createQuickStatsChart();
+    animateStatsCards();
+    initializeParticleEffects();
+    setupPlantSelector();
+});
+
+function setupPlantSelector() {
+    const options = document.querySelectorAll('.plant-option');
+    options.forEach(option => {
+        option.addEventListener('click', function() {
+            options.forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            const category = this.dataset.category;
+            filterPredictionsByCategory(category);
+        });
+    });
+}
+
+function filterPredictionsByCategory(category) {
+    // In a real implementation, this would filter the predictions
+    // For now, we'll just show a loading state
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    setTimeout(() => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        // Here you would typically reload the predictions based on the category
+        // For this example, we'll just show an alert
+        if (category !== 'all') {
+            showAlert(`Filtering by ${category} plants`, 'info');
+        }
+    }, 1000);
+}
+
+function createQuickStatsChart() {
+    const ctx = document.getElementById('quickStatsChart');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Healthy', 'Diseased', 'Under Treatment'],
+            datasets: [{
+                data: [75, 15, 10], // Example data
+                backgroundColor: [
+                    'rgba(76, 175, 80, 0.8)',
+                    'rgba(244, 67, 54, 0.8)',
+                    'rgba(255, 152, 0, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(76, 175, 80, 1)',
+                    'rgba(244, 67, 54, 1)',
+                    'rgba(255, 152, 0, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff',
+                        font: { size: 12 }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function showAdvancedDetails(disease, confidence, date, imageSrc) {
+    document.getElementById('modalImageAdvanced').src = imageSrc;
+    document.getElementById('modalDiseaseAdvanced').textContent = disease;
+    document.getElementById('modalDateAdvanced').textContent = date;
+    document.getElementById('confidenceText').textContent = Math.round(confidence) + '%';
+
+    // Animate progress ring
+    const circle = document.querySelector('.progress-ring-circle');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (confidence / 100 * circumference);
+
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = circumference;
+
+    setTimeout(() => {
+        circle.style.strokeDashoffset = offset;
+    }, 100);
+
+    // Load treatment info and steps
+    fetchAITreatment(disease);
+    loadTreatmentSteps(disease);
+
+    new bootstrap.Modal(document.getElementById('advancedModal')).show();
+}
+
+function fetchAITreatment(disease) {
+    // In a real app, this would fetch from an API
+    // For now, we'll use mock data
+    let treatment = "Apply a fungicide specifically designed for this plant disease. Remove affected leaves to prevent spread.";
+    let prevention = "Ensure proper air circulation, avoid overwatering, and maintain optimal sunlight conditions.";
+    
+    if (disease.toLowerCase().includes('healthy')) {
+        treatment = "Your plant appears healthy! Continue with current care routine.";
+        prevention = "Maintain consistent watering schedule and monitor for any changes in leaf color or texture.";
+    }
+    
+    document.getElementById('treatmentAdvanced').textContent = treatment;
+    document.getElementById('preventionTips').textContent = prevention;
+}
+
+function loadTreatmentSteps(disease) {
+    const stepsContainer = document.getElementById('stepByStepTreatment');
+    stepsContainer.innerHTML = '';
+    
+    // Example steps - in a real app, these would come from a database or API
+    const steps = [
+        {title: "Isolate Plant", content: "Immediately isolate the affected plant to prevent disease spread."},
+        {title: "Remove Affected Areas", content: "Using sterilized pruning tools, remove all visibly affected leaves and stems."},
+        {title: "Apply Treatment", content: "Apply recommended fungicide/bactericide according to product instructions."},
+        {title: "Monitor Progress", content: "Check plant daily for signs of improvement or further spread."},
+        {title: "Prevent Recurrence", content: "Adjust environmental conditions to prevent future outbreaks."}
+    ];
+    
+    // Special steps for healthy plants
+    if (disease.toLowerCase().includes('healthy')) {
+        steps.length = 0; // Clear the array
+        steps.push(
+            {title: "Continue Current Care", content: "Maintain your current watering and fertilization schedule."},
+            {title: "Monitor Growth", content: "Regularly check for new growth and overall plant vigor."},
+            {title: "Preventative Measures", content: "Keep the plant in optimal conditions to maintain health."}
+        );
+    }
+    
+    steps.forEach((step, index) => {
+        const stepElement = document.createElement('div');
+        stepElement.className = 'treatment-step';
+        stepElement.innerHTML = `
+            <h5>${step.title}</h5>
+            <p>${step.content}</p>
+        `;
+        stepsContainer.appendChild(stepElement);
+    });
+}
+
+function openAIAssistant() {
+    const modal = new bootstrap.Modal(document.getElementById('aiAssistantModal'));
+    modal.show();
+    
+    // Add welcome message
+    addAIMessage("Hello! I'm your PlantCare AI Assistant. How can I help you with your plants today?");
+}
+
+function addAIMessage(message, isUser = false) {
+    const chatContainer = document.getElementById('aiChatContainer');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `mb-2 p-3 rounded ${isUser ? 'bg-primary text-white ms-5' : 'bg-secondary me-5'}`;
+    messageDiv.style.maxWidth = '80%';
+    messageDiv.style.wordWrap = 'break-word';
+    messageDiv.innerHTML = isUser ? 
+        `<strong>You:</strong> ${message}` : 
+        `<strong>PlantCare AI:</strong> ${message}`;
+    
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function sendAIMessage() {
+    const input = document.getElementById('aiChatInput');
+    const message = input.value.trim();
+    
+    if (message) {
+        addAIMessage(message, true);
+        input.value = '';
+        
+        // Simulate AI response
+        setTimeout(() => {
+            const responses = [
+                "Based on your plant's symptoms, it might need more sunlight.",
+                "Have you checked the soil moisture recently? Overwatering is a common issue.",
+                "I recommend checking for pests on the underside of leaves.",
+                "That's a great question! For that plant species, the ideal temperature is between 18-24°C.",
+                "I can help you with that. Could you describe the symptoms in more detail?"
+            ];
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            addAIMessage(randomResponse);
+        }, 1000);
+    }
+}
+
+function downloadReport() {
+    showAlert("Generating and downloading your plant health report...", "success");
+    // In a real app, this would generate and download a PDF report
+    setTimeout(() => {
+        showAlert("Report downloaded successfully!", "success");
+    }, 2000);
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    const container = document.createElement('div');
+    container.className = 'position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    container.appendChild(alertDiv);
+    
+    document.body.appendChild(container);
+    
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => container.remove(), 150);
+    }, 3000);
+}
+
+function showTreatmentGuide() {
+    showAlert("Opening the comprehensive treatment guide...", "info");
+}
+
+function showDiseaseLibrary() {
+    showAlert("Accessing the disease library...", "info");
+}
+
+function showReminders() {
+    showAlert("Loading your care reminders...", "info");
+}
+
+function showCommunity() {
+    showAlert("Connecting to the PlantCare community...", "info");
+}
+
+// Initialize particle effects for the dashboard
+function initializeParticleEffects() {
+    // This would initialize any particle effects or animations
+    // For now, we'll just log to console
+    console.log("Particle effects initialized");
+}
+
+// Initialize dashboard with any additional setup
+function initializeAdvancedDashboard() {
+    console.log("Advanced dashboard initialized");
+    // Any additional initialization code would go here
+}
+
+// Create health chart (placeholder for actual implementation)
+function createHealthChart() {
+    console.log("Health chart created");
+}
+</script>
+{% endblock %}
