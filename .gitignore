@@ -21,11 +21,10 @@ static/uploads/*
 *.swo
 .DS_Store
 Thumbs.db
-model/*.h5
 !model/labels.json  # Keep this file
 *.db
 *.sqlite3
 render.yaml
 config.py
 app.log
-*.h5
+
