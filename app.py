@@ -25,19 +25,30 @@ from flask_sqlalchemy import SQLAlchemy
 import concurrent.futures
 from threading import Lock
 
+# Configure TensorFlow to use CPU only and avoid CUDA errors
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+# Configure TensorFlow for CPU-only deployment
+tf.config.set_visible_devices([], 'GPU')
+
 # Load environment variables
 load_dotenv()
 
 # Configure Gemini API
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+try:
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    GEMINI_AVAILABLE = True
+except Exception as e:
+    print(f"Gemini API not configured: {e}")
+    GEMINI_AVAILABLE = False
 
 # App Configuration
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
-if not app.secret_key:
-    raise ValueError("No SECRET_KEY set for Flask application")
+app.secret_key = os.getenv('SECRET_KEY', 'fallback-secret-key-for-development')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///plant_app.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Configure uploads
@@ -47,27 +58,29 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-# Google OAuth Configuration
+# Google OAuth Configuration (optional)
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
 
-# Check required environment variables
-required_vars = ['GEMINI_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']
-missing_vars = [var for var in required_vars if not os.getenv(var)]
-if missing_vars:
-    raise EnvironmentError(f"Missing required env vars: {', '.join(missing_vars)}")
-
-# Initialize OAuth
-oauth = OAuth(app)
-google = oauth.register(
-    name='google',
-    client_id=app.config['GOOGLE_CLIENT_ID'],
-    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={
-        'scope': 'openid email profile'
-    }
-)
+# Initialize OAuth only if credentials are available
+oauth = None
+google = None
+if app.config['GOOGLE_CLIENT_ID'] and app.config['GOOGLE_CLIENT_SECRET']:
+    try:
+        oauth = OAuth(app)
+        google = oauth.register(
+            name='google',
+            client_id=app.config['GOOGLE_CLIENT_ID'],
+            client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            client_kwargs={'scope': 'openid email profile'}
+        )
+        GOOGLE_AUTH_AVAILABLE = True
+    except Exception as e:
+        print(f"Google OAuth not configured: {e}")
+        GOOGLE_AUTH_AVAILABLE = False
+else:
+    GOOGLE_AUTH_AVAILABLE = False
 
 # Constants
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
@@ -79,33 +92,81 @@ TREATMENTS_PATH = 'plant_treatments.csv'
 model = None
 label_dict = {}
 treatments_df = pd.DataFrame()
-ai_cache = {}  # Cache for AI responses
+ai_cache = {}
 ai_cache_lock = Lock()
+MODEL_LOADED = False
 
-# Load model and labels
-try:
-    print("Loading model...")
-    model = tf.keras.models.load_model(MODEL_PATH)
-    with open(LABELS_PATH) as f:
-        label_map = json.load(f)
-    label_dict = {v: k for k, v in label_map.items()}
-    print("Model and labels loaded successfully")
-except Exception as e:
-    model = None
-    label_dict = {}
-    print(f"Error loading model or labels: {e}")
+def load_model_safe():
+    """Safely load the model with proper error handling"""
+    global model, label_dict, MODEL_LOADED
+    
+    try:
+        print("Loading TensorFlow model...")
+        
+        # Check if model file exists
+        if not os.path.exists(MODEL_PATH):
+            print(f"❌ Model file not found at: {MODEL_PATH}")
+            return False
+            
+        if not os.path.exists(LABELS_PATH):
+            print(f"❌ Labels file not found at: {LABELS_PATH}")
+            return False
+        
+        # Load model with CPU configuration
+        with tf.device('/CPU:0'):
+            model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            
+        # Recompile for CPU
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        # Load labels
+        with open(LABELS_PATH, 'r') as f:
+            label_map = json.load(f)
+        label_dict = {v: k for k, v in label_map.items()}
+        
+        print(f"✅ Model loaded successfully with {len(label_dict)} classes")
+        MODEL_LOADED = True
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error loading model: {e}")
+        model = None
+        label_dict = {}
+        MODEL_LOADED = False
+        return False
 
-# Load treatment data
-try:
-    treatments_df = pd.read_csv(TREATMENTS_PATH)
-    print("Treatment data loaded successfully")
-except Exception as e:
-    treatments_df = pd.DataFrame()
-    print(f"Error loading treatment data: {e}")
+def load_treatments_safe():
+    """Safely load treatment data"""
+    global treatments_df
+    try:
+        if os.path.exists(TREATMENTS_PATH):
+            treatments_df = pd.read_csv(TREATMENTS_PATH)
+            print(f"✅ Treatment data loaded: {len(treatments_df)} treatments")
+        else:
+            print(f"⚠️ Treatment file not found: {TREATMENTS_PATH}")
+            treatments_df = pd.DataFrame()
+    except Exception as e:
+        print(f"❌ Error loading treatments: {e}")
+        treatments_df = pd.DataFrame()
+
+# Initialize model and data
+print("Initializing application...")
+load_model_safe()
+load_treatments_safe()
 
 @app.route('/health')
 def health_check():
-    return jsonify({"status": "healthy", "model_loaded": model is not None}), 200
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy", 
+        "model_loaded": MODEL_LOADED,
+        "gemini_available": GEMINI_AVAILABLE,
+        "google_auth_available": GOOGLE_AUTH_AVAILABLE
+    }), 200
 
 # Authentication decorator
 def login_required(f):
@@ -119,38 +180,43 @@ def login_required(f):
 
 # Initialize SQLite DB
 def init_db():
-    with sqlite3.connect('plant_app.db') as conn:
-        c = conn.cursor()
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT,
-                google_id TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Check if google_id column exists, if not add it
-        c.execute("PRAGMA table_info(users)")
-        columns = [column[1] for column in c.fetchall()]
-        if 'google_id' not in columns:
-            c.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
-            print("Added google_id column to users table")
-        
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS predictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                filename TEXT,
-                predicted_class TEXT,
-                confidence REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        conn.commit()
+    """Initialize database with proper error handling"""
+    try:
+        with sqlite3.connect('plant_app.db') as conn:
+            c = conn.cursor()
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT,
+                    google_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Check if google_id column exists
+            c.execute("PRAGMA table_info(users)")
+            columns = [column[1] for column in c.fetchall()]
+            if 'google_id' not in columns:
+                c.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
+                print("✅ Added google_id column to users table")
+            
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS predictions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    filename TEXT,
+                    predicted_class TEXT,
+                    confidence REAL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            ''')
+            conn.commit()
+            print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization error: {e}")
 
 init_db()
 
@@ -159,82 +225,77 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def preprocess_image(img_path):
-    """Optimized image preprocessing"""
+    """Optimized image preprocessing with error handling"""
     try:
-        # Use PIL for faster loading and resizing
         img = Image.open(img_path)
-        img = img.convert('RGB')  # Ensure RGB format
-        img = img.resize((128, 128), Image.Resampling.LANCZOS)  # Faster resizing
+        img = img.convert('RGB')
+        img = img.resize((128, 128), Image.Resampling.LANCZOS)
         
-        # Convert to numpy array
         img_array = np.array(img, dtype=np.float32) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
         return img_array
     except Exception as e:
-        print(f"Error preprocessing image: {e}")
+        print(f"❌ Error preprocessing image: {e}")
         raise
 
 def predict_disease(img_path):
-    """Optimized disease prediction"""
-    if model is None:
-        return "Model not loaded", 0.0
+    """Disease prediction with fallback handling"""
+    if not MODEL_LOADED or model is None:
+        return "Model not available", 0.0
     
     try:
-        print(f"Starting prediction for: {img_path}")
+        print(f"🔍 Starting prediction for: {img_path}")
         start_time = time.time()
         
         img = preprocess_image(img_path)
-        print(f"Image preprocessing took: {time.time() - start_time:.2f}s")
         
-        pred_start = time.time()
-        preds = model.predict(img, verbose=0)  # verbose=0 for faster prediction
-        print(f"Model prediction took: {time.time() - pred_start:.2f}s")
+        # Use CPU for prediction
+        with tf.device('/CPU:0'):
+            preds = model.predict(img, verbose=0)
         
         class_index = np.argmax(preds)
         class_name = label_dict.get(class_index, "Unknown")
         confidence = float(np.max(preds))
         
-        print(f"Total prediction time: {time.time() - start_time:.2f}s")
+        print(f"✅ Prediction complete: {class_name} ({confidence:.2%}) in {time.time() - start_time:.2f}s")
         return class_name, confidence
         
     except Exception as e:
-        print(f"Error in predict_disease: {e}")
+        print(f"❌ Prediction error: {e}")
         return "Prediction Error", 0.0
 
-def get_ai_treatment_async(disease_name, confidence_score=0.0, timeout=15):
-    """Get treatment from Gemini AI with timeout and caching"""
+def get_ai_treatment_async(disease_name, confidence_score=0.0, timeout=10):
+    """Get AI treatment with proper fallback"""
+    if not GEMINI_AVAILABLE:
+        return get_fallback_treatment(disease_name)
     
-    # Create cache key
     cache_key = f"{disease_name}_{confidence_score:.2f}"
     
-    # Check cache first
     with ai_cache_lock:
         if cache_key in ai_cache:
-            print(f"Using cached AI response for: {disease_name}")
             return ai_cache[cache_key]
     
     def get_ai_response():
         try:
             model_ai = genai.GenerativeModel('gemini-1.5-flash')
             
-            # Shorter, more focused prompt for faster response
             prompt = f"""
             Plant disease: "{disease_name}"
             Confidence: {confidence_score:.1%}
             
             Provide concise treatment info:
             1. Treatment: Main treatment method
-            2. Prevention: Key prevention steps
+            2. Prevention: Key prevention steps  
             3. Severity: Mild/Moderate/Severe
             
-            Keep response under 300 words.
+            Keep response under 200 words.
             """
             
             response = model_ai.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=300,  # Limit response length
-                    temperature=0.1,  # More focused responses
+                    max_output_tokens=200,
+                    temperature=0.1,
                 )
             )
             
@@ -246,10 +307,9 @@ def get_ai_treatment_async(disease_name, confidence_score=0.0, timeout=15):
                     'organic_treatment': 'Included in main treatment',
                     'chemical_treatment': 'Included in main treatment',
                     'severity': 'As assessed by AI',
-                    'source': 'Gemini AI-generated'
+                    'source': 'Gemini AI'
                 }
                 
-                # Cache the result
                 with ai_cache_lock:
                     ai_cache[cache_key] = result
                 
@@ -258,40 +318,34 @@ def get_ai_treatment_async(disease_name, confidence_score=0.0, timeout=15):
                 raise Exception("No response from Gemini AI")
                 
         except Exception as e:
-            print(f"Gemini AI error: {e}")
+            print(f"❌ Gemini AI error: {e}")
             raise e
     
-    # Use ThreadPoolExecutor with timeout
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(get_ai_response)
             return future.result(timeout=timeout)
-    except concurrent.futures.TimeoutError:
-        print(f"AI request timed out after {timeout}s for disease: {disease_name}")
-        return get_fallback_treatment(disease_name)
-    except Exception as e:
-        print(f"AI request failed: {e}")
+    except (concurrent.futures.TimeoutError, Exception) as e:
+        print(f"❌ AI request failed: {e}")
         return get_fallback_treatment(disease_name)
 
 def get_fallback_treatment(disease_name):
-    """Fallback treatment when AI fails"""
+    """Enhanced fallback treatment"""
     return {
         'disease': disease_name,
-        'treatment': 'Unable to generate AI treatment at this time. Please consult with a plant specialist for proper diagnosis and treatment.',
-        'prevention': 'Follow general plant care: proper watering, good drainage, adequate spacing, and regular monitoring.',
-        'organic_treatment': 'Apply organic compost, neem oil, or copper-based fungicides as appropriate.',
-        'chemical_treatment': 'Consult agricultural expert for chemical treatments if organic methods fail.',
-        'severity': 'Unknown - requires professional assessment',
-        'source': 'Fallback'
+        'treatment': f'For {disease_name}: Remove affected parts, improve air circulation, avoid overhead watering. Consult agricultural expert for specific treatment.',
+        'prevention': 'Proper spacing, good drainage, regular monitoring, and appropriate fertilization.',
+        'organic_treatment': 'Neem oil, copper fungicide, or baking soda solution may help depending on the condition.',
+        'chemical_treatment': 'Consult agricultural extension service for appropriate chemical treatments.',
+        'severity': 'Requires assessment - monitor plant closely',
+        'source': 'General Guidelines'
     }
 
 def get_treatment_info(disease_name, confidence_score=0.0):
-    """Get treatment information - prioritize CSV, fallback to fast AI"""
+    """Get treatment info with CSV priority, AI fallback"""
     
-    CONFIDENCE_THRESHOLD = 0.7
-    
-    # First, try CSV database
-    if not treatments_df.empty and confidence_score >= CONFIDENCE_THRESHOLD:
+    # Try CSV first for high confidence
+    if not treatments_df.empty and confidence_score >= 0.6:
         treatment_row = treatments_df[treatments_df['disease'] == disease_name]
         
         if treatment_row.empty:
@@ -299,7 +353,6 @@ def get_treatment_info(disease_name, confidence_score=0.0):
         
         if not treatment_row.empty:
             row = treatment_row.iloc[0]
-            print(f"Using CSV treatment for: {disease_name}")
             return {
                 'disease': row['disease'],
                 'treatment': row['treatment'],
@@ -310,12 +363,11 @@ def get_treatment_info(disease_name, confidence_score=0.0):
                 'source': 'Database'
             }
     
-    # Fallback to AI (with timeout and caching)
-    print(f"Using AI treatment for: {disease_name} (confidence: {confidence_score:.1%})")
-    return get_ai_treatment_async(disease_name, confidence_score, timeout=10)
+    # Fallback to AI or general treatment
+    return get_ai_treatment_async(disease_name, confidence_score, timeout=8)
 
 def getImmediateAction(disease_name, confidence=0.0):
-    """Wrapper for get_treatment_info to maintain template compatibility"""
+    """Wrapper for template compatibility"""
     treatment = get_treatment_info(disease_name, confidence)
     return treatment.get('treatment', 'No specific treatment information available')
 
@@ -332,16 +384,16 @@ def register():
         return redirect(url_for('dashboard'))
         
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
 
-        if not username or not email or not password:
+        if not all([username, email, password]):
             flash("All fields are required!")
             return redirect(request.url)
 
-        hashed_pw = generate_password_hash(password)
         try:
+            hashed_pw = generate_password_hash(password)
             with sqlite3.connect('plant_app.db') as conn:
                 c = conn.cursor()
                 c.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
@@ -351,6 +403,10 @@ def register():
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             flash("Username or email already exists.")
+        except Exception as e:
+            print(f"Registration error: {e}")
+            flash("Registration failed. Please try again.")
+    
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -359,31 +415,55 @@ def login():
         return redirect(url_for('dashboard'))
         
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
 
-        with sqlite3.connect('plant_app.db') as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, password FROM users WHERE username = ?", (username,))
-            user = c.fetchone()
+        if not username or not password:
+            flash("Username and password are required.")
+            return redirect(request.url)
 
-        if user and check_password_hash(user[1], password):
-            session['user_id'] = user[0]
-            session['username'] = username
-            flash("Login successful!")
-            return redirect(url_for('dashboard'))
-        flash("Invalid credentials.")
-    return render_template('login.html')
+        try:
+            with sqlite3.connect('plant_app.db') as conn:
+                c = conn.cursor()
+                c.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+                user = c.fetchone()
+
+            if user and check_password_hash(user[1], password):
+                session['user_id'] = user[0]
+                session['username'] = username
+                flash("Login successful!")
+                return redirect(url_for('dashboard'))
+            else:
+                flash("Invalid credentials.")
+        except Exception as e:
+            print(f"Login error: {e}")
+            flash("Login failed. Please try again.")
+    
+    return render_template('login.html', google_auth_available=GOOGLE_AUTH_AVAILABLE)
 
 @app.route('/auth/google')
 def google_login():
+    if not GOOGLE_AUTH_AVAILABLE:
+        flash("Google login is not available.")
+        return redirect(url_for('login'))
+    
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
-    redirect_uri = url_for('google_callback', _external=True)
-    return google.authorize_redirect(redirect_uri)
+    
+    try:
+        redirect_uri = url_for('google_callback', _external=True)
+        return google.authorize_redirect(redirect_uri)
+    except Exception as e:
+        print(f"Google login error: {e}")
+        flash("Google login failed.")
+        return redirect(url_for('login'))
 
 @app.route('/auth/callback')
 def google_callback():
+    if not GOOGLE_AUTH_AVAILABLE:
+        flash("Google login is not available.")
+        return redirect(url_for('login'))
+    
     try:
         token = google.authorize_access_token()
         user_info = token.get('userinfo')
@@ -420,11 +500,9 @@ def google_callback():
             flash("Login successful!")
             return redirect(url_for('dashboard'))
     except Exception as e:
-        print(f"OAuth error: {e}")
+        print(f"OAuth callback error: {e}")
         flash("Google login failed. Please try again.")
-        return redirect(url_for('login'))
     
-    flash("Google login failed.")
     return redirect(url_for('login'))
 
 @app.route('/logout')
@@ -437,70 +515,84 @@ def logout():
 @login_required
 def predict():
     if request.method == 'POST':
+        if not MODEL_LOADED:
+            flash("Model is not available. Please try again later.")
+            return redirect(request.url)
+        
         file = request.files.get('file')
         if file and allowed_file(file.filename):
-            filename = datetime.now().strftime('%Y%m%d%H%M%S_') + secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+            try:
+                filename = datetime.now().strftime('%Y%m%d%H%M%S_') + secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
 
-            print("Starting prediction process...")
-            predicted_class, confidence = predict_disease(filepath)
-            print(f"Prediction complete: {predicted_class} ({confidence:.2%})")
-            
-            print("Getting treatment info...")
-            treatment_info = get_treatment_info(predicted_class, confidence)
-            print("Treatment info retrieved")
+                predicted_class, confidence = predict_disease(filepath)
+                treatment_info = get_treatment_info(predicted_class, confidence)
 
-            with sqlite3.connect('plant_app.db') as conn:
-                c = conn.cursor()
-                c.execute('''
-                    INSERT INTO predictions (user_id, filename, predicted_class, confidence)
-                    VALUES (?, ?, ?, ?)''',
-                    (session['user_id'], filename, predicted_class, confidence))
-                conn.commit()
+                with sqlite3.connect('plant_app.db') as conn:
+                    c = conn.cursor()
+                    c.execute('''
+                        INSERT INTO predictions (user_id, filename, predicted_class, confidence)
+                        VALUES (?, ?, ?, ?)''',
+                        (session['user_id'], filename, predicted_class, confidence))
+                    conn.commit()
 
-            return render_template('result.html', 
-                                   filename=filename, 
-                                   predicted_class=predicted_class, 
-                                   confidence=round(confidence * 100, 2),
-                                   treatment_info=treatment_info)
-        flash("Invalid file format or no file selected.")
-    return render_template('predict.html')
+                return render_template('result.html', 
+                                       filename=filename, 
+                                       predicted_class=predicted_class, 
+                                       confidence=round(confidence * 100, 2),
+                                       treatment_info=treatment_info)
+            except Exception as e:
+                print(f"Prediction error: {e}")
+                flash("Error processing image. Please try again.")
+        else:
+            flash("Invalid file format or no file selected.")
+    
+    return render_template('predict.html', model_loaded=MODEL_LOADED)
 
 @app.route('/dashboard')
 @login_required
-@cache.cached(timeout=60)
 def dashboard():
-    with sqlite3.connect('plant_app.db') as conn:
-        c = conn.cursor()
+    try:
+        with sqlite3.connect('plant_app.db') as conn:
+            c = conn.cursor()
+            
+            c.execute('''
+                SELECT filename, predicted_class, confidence, created_at
+                FROM predictions
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT 10
+            ''', (session['user_id'],))
+            predictions = c.fetchall()
+            
+            c.execute('''
+                SELECT 
+                    COUNT(*) as total_scans,
+                    SUM(CASE WHEN predicted_class LIKE '%healthy%' THEN 1 ELSE 0 END) as healthy_count,
+                    SUM(CASE WHEN predicted_class NOT LIKE '%healthy%' THEN 1 ELSE 0 END) as disease_count,
+                    AVG(confidence) as avg_confidence
+                FROM predictions
+                WHERE user_id = ?
+            ''', (session['user_id'],))
+            stats = c.fetchone()
         
-        c.execute('''
-            SELECT filename, predicted_class, confidence, created_at
-            FROM predictions
-            WHERE user_id = ?
-            ORDER BY created_at DESC
-            LIMIT 10
-        ''', (session['user_id'],))
-        predictions = c.fetchall()
-        
-        c.execute('''
-            SELECT 
-                COUNT(*) as total_scans,
-                SUM(CASE WHEN predicted_class LIKE '%healthy%' THEN 1 ELSE 0 END) as healthy_count,
-                SUM(CASE WHEN predicted_class NOT LIKE '%healthy%' THEN 1 ELSE 0 END) as disease_count,
-                AVG(confidence) as avg_confidence
-            FROM predictions
-            WHERE user_id = ?
-        ''', (session['user_id'],))
-        stats = c.fetchone()
-    
-    return render_template('dashboard.html', 
-                        predictions=predictions,
-                        stats=stats,
-                        getImmediateAction=getImmediateAction)
+        return render_template('dashboard.html', 
+                            predictions=predictions,
+                            stats=stats,
+                            getImmediateAction=getImmediateAction,
+                            model_loaded=MODEL_LOADED)
+    except Exception as e:
+        print(f"Dashboard error: {e}")
+        flash("Error loading dashboard.")
+        return render_template('dashboard.html', 
+                            predictions=[],
+                            stats=(0, 0, 0, 0),
+                            getImmediateAction=getImmediateAction,
+                            model_loaded=MODEL_LOADED)
 
 @app.route('/about')
-@login_required
+@login_required  
 def about():
     return render_template('about.html')
 
@@ -512,19 +604,15 @@ def contact():
         return redirect(url_for('contact'))
     return render_template('contact.html')
 
-@app.route('/camera')
-@login_required
-def camera():
-    """Real-time camera detection page"""
-    return render_template('camera.html')
-
+# API Routes with better error handling
 @app.route('/api/process_frame', methods=['POST'])
 @login_required
 def process_frame():
-    """Process individual camera frame for disease detection"""
+    if not MODEL_LOADED:
+        return jsonify({'error': 'Model not available'}), 503
+    
     try:
         data = request.get_json()
-        
         if not data or 'image' not in data:
             return jsonify({'error': 'No image data provided'}), 400
         
@@ -539,13 +627,9 @@ def process_frame():
         try:
             predicted_class, confidence = predict_disease(temp_filepath)
             
-            # Only get treatment info for high-confidence predictions in real-time
             treatment_info = None
-            if confidence > 0.5:
+            if confidence > 0.4:
                 treatment_info = get_treatment_info(predicted_class, confidence)
-            
-            if os.path.exists(temp_filepath):
-                os.remove(temp_filepath)
             
             return jsonify({
                 'success': True,
@@ -554,123 +638,25 @@ def process_frame():
                 'treatment_info': treatment_info
             })
             
-        except Exception as e:
+        finally:
             if os.path.exists(temp_filepath):
                 os.remove(temp_filepath)
-            raise e
             
     except Exception as e:
-        print(f"Error processing frame: {e}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Frame processing error: {e}")
+        return jsonify({'error': 'Processing failed'}), 500
 
-@app.route('/api/save_detection', methods=['POST'])
-@login_required
-def save_detection():
-    """Save a detection result from real-time camera"""
-    try:
-        data = request.get_json()
-        
-        if not all(key in data for key in ['image', 'predicted_class', 'confidence']):
-            return jsonify({'error': 'Missing required data'}), 400
-        
-        image_data = data['image'].split(',')[1]
-        image_bytes = base64.b64decode(image_data)
-        
-        filename = f"camera_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
-        with open(filepath, 'wb') as f:
-            f.write(image_bytes)
-        
-        with sqlite3.connect('plant_app.db') as conn:
-            c = conn.cursor()
-            c.execute('''
-                INSERT INTO predictions (user_id, filename, predicted_class, confidence)
-                VALUES (?, ?, ?, ?)''',
-                (session['user_id'], filename, data['predicted_class'], data['confidence'] / 100))
-            conn.commit()
-            prediction_id = c.lastrowid
-        
-        return jsonify({
-            'success': True,
-            'message': 'Detection saved successfully!',
-            'prediction_id': prediction_id
-        })
-        
-    except Exception as e:
-        print(f"Error saving detection: {e}")
-        return jsonify({'error': str(e)}), 500
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
 
-@app.route('/predict_camera', methods=['POST'])
-@login_required  
-def predict_camera():
-    """Handle camera capture from regular predict page"""
-    try:
-        data = request.get_json()
-        
-        if not data or 'image' not in data:
-            return jsonify({'error': 'No image data provided'}), 400
-        
-        image_data = data['image'].split(',')[1]
-        image_bytes = base64.b64decode(image_data)
-        
-        filename = f"capture_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
-        with open(filepath, 'wb') as f:
-            f.write(image_bytes)
-        
-        predicted_class, confidence = predict_disease(filepath)
-        treatment_info = get_treatment_info(predicted_class, confidence)
-        
-        with sqlite3.connect('plant_app.db') as conn:
-            c = conn.cursor()
-            c.execute('''
-                INSERT INTO predictions (user_id, filename, predicted_class, confidence)
-                VALUES (?, ?, ?, ?)''',
-                (session['user_id'], filename, predicted_class, confidence))
-            conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'predicted_class': predicted_class,
-            'confidence': round(confidence * 100, 2),
-            'treatment_info': treatment_info
-        })
-        
-    except Exception as e:
-        print(f"Error processing camera capture: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/ai_treatment', methods=['POST'])
-@login_required
-def api_ai_treatment():
-    data = request.get_json()
-    disease = data.get('disease')
-    confidence = data.get('confidence', 0.0)
-    
-    if not disease:
-        return jsonify({"error": "Disease name is required"}), 400
-    
-    treatment_info = get_ai_treatment_async(disease, confidence, timeout=15)
-    return jsonify(treatment_info)
-
-@app.route('/test_gemini')
-@login_required
-def test_gemini():
-    try:
-        model_ai = genai.GenerativeModel('gemini-1.5-flash')
-        response = model_ai.generate_content("Hello, please respond with 'Gemini API is working correctly!'")
-        return jsonify({
-            "status": "success",
-            "message": response.text if response and response.text else "No response"
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        })
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    print("🚀 Starting Plant Disease Detection App...")
+    print(f"Model loaded: {MODEL_LOADED}")
+    print(f"Gemini AI available: {GEMINI_AVAILABLE}")
+    print(f"Google Auth available: {GOOGLE_AUTH_AVAILABLE}")
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
