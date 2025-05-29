@@ -2,7 +2,8 @@ Flask==2.3.3
 Werkzeug==2.3.7
 opencv-python==4.8.1.78
 Pillow==10.0.1
-numpy>=1.26.0,<2.2.0
+numpy==1.26.4
+opencv-python-headless==4.8.1.78  
 pandas>=2.1.0
 tensorflow==2.19.0
 keras>=3.5.0
