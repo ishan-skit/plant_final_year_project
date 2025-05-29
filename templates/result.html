@@ -657,7 +657,7 @@
                             </div>
 
                             <!-- Treatment - Main Section -->
-                            <!-- Enhanced Treatment Protocol Section -->
+                           <!-- Enhanced Treatment Protocol Section - FIXED VERSION -->
 <div class="treatment-item treatment-protocol-enhanced">
     <div class="treatment-label">
         <i class="fas fa-medkit me-2" style="color: var(--result-warning);"></i>Treatment Protocol
@@ -665,55 +665,54 @@
     
     {% if treatment_info.treatment %}
         <div class="enhanced-treatment-content">
-            {% set treatment_steps = treatment_info.treatment.split('\n\n') %}
-            
-            {% for step in treatment_steps %}
-                {% if step.strip() %}
-                    <div class="treatment-step-card">
-                        {% if loop.index == 1 %}
-                            <div class="step-header-enhanced">
-                                <div class="step-icon-enhanced immediate">
-                                    <i class="fas fa-bolt"></i>
-                                </div>
-                                <div class="step-title-enhanced">Immediate Action</div>
-                            </div>
-                        {% elif 'spray' in step.lower() or 'apply' in step.lower() or 'treatment' in step.lower() %}
-                            <div class="step-header-enhanced">
-                                <div class="step-icon-enhanced treatment">
-                                    <i class="fas fa-flask"></i>
-                                </div>
-                                <div class="step-title-enhanced">Treatment Application</div>
-                            </div>
-                        {% elif 'monitor' in step.lower() or 'watch' in step.lower() or 'observe' in step.lower() %}
-                            <div class="step-header-enhanced">
-                                <div class="step-icon-enhanced monitoring">
-                                    <i class="fas fa-eye"></i>
-                                </div>
-                                <div class="step-title-enhanced">Monitoring</div>
-                            </div>
-                        {% else %}
-                            <div class="step-header-enhanced">
-                                <div class="step-icon-enhanced general">
-                                    <i class="fas fa-leaf"></i>
-                                </div>
-                                <div class="step-title-enhanced">Care Instructions</div>
-                            </div>
-                        {% endif %}
-                        
-                        <div class="step-content-enhanced">
-                            {% set sentences = step.strip().split('.') %}
-                            {% for sentence in sentences %}
-                                {% if sentence.strip() %}
-                                    <div class="treatment-point">
-                                        <i class="fas fa-check-circle point-icon"></i>
-                                        <span class="point-text">{{ sentence.strip() }}.</span>
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
+            <!-- Single treatment card instead of multiple repetitive cards -->
+            <div class="treatment-step-card">
+                <div class="step-header-enhanced">
+                    <div class="step-icon-enhanced treatment">
+                        <i class="fas fa-flask"></i>
                     </div>
-                {% endif %}
-            {% endfor %}
+                    <div class="step-title-enhanced">Treatment Instructions</div>
+                </div>
+                
+                <div class="step-content-enhanced">
+                    <!-- Process the treatment text more efficiently -->
+                    {% set treatment_text = treatment_info.treatment.strip() %}
+                    {% if '\n\n' in treatment_text %}
+                        <!-- If there are clear paragraph breaks, use them -->
+                        {% set treatment_paragraphs = treatment_text.split('\n\n') %}
+                        {% for paragraph in treatment_paragraphs %}
+                            {% if paragraph.strip() %}
+                                <div class="treatment-point">
+                                    <i class="fas fa-check-circle point-icon"></i>
+                                    <span class="point-text">{{ paragraph.strip() }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% elif '\n' in treatment_text %}
+                        <!-- If there are line breaks, use them -->
+                        {% set treatment_lines = treatment_text.split('\n') %}
+                        {% for line in treatment_lines %}
+                            {% if line.strip() and line.strip() != '' %}
+                                <div class="treatment-point">
+                                    <i class="fas fa-check-circle point-icon"></i>
+                                    <span class="point-text">{{ line.strip() }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <!-- If it's just a single block of text, split by sentences -->
+                        {% set sentences = treatment_text.split('.') %}
+                        {% for sentence in sentences %}
+                            {% if sentence.strip() and sentence.strip() != '' %}
+                                <div class="treatment-point">
+                                    <i class="fas fa-check-circle point-icon"></i>
+                                    <span class="point-text">{{ sentence.strip() }}{% if not sentence.endswith('.') %}.{% endif %}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
             
             {% if treatment_info.source == 'AI-generated' %}
                 <div class="ai-enhancement-badge">
@@ -734,17 +733,7 @@
     {% endif %}
 </div>
 
-                            <!-- Prevention -->
-                            <div class="treatment-item">
-                                <div class="treatment-label">
-                                    <i class="fas fa-shield-alt me-2" style="color: var(--result-info);"></i>Prevention Measures
-                                </div>
-                                <div class="treatment-text">
-                                    {{ treatment_info.prevention if treatment_info.prevention else 'Maintain proper watering, ensure good air circulation, and monitor plant health regularly.' }}
-                                </div>
-                            </div>
-
-                            <!-- Additional Treatment Options -->
+<!-- Additional Treatment Options -->
                             {% if treatment_info.organic_treatment and treatment_info.organic_treatment != 'AI-generated organic treatment included above' %}
                             <div class="treatment-item">
                                 <div class="treatment-label">
