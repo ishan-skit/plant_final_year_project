@@ -493,11 +493,12 @@ def dashboard():
             
             # Recent predictions
             c.execute('''
-    SELECT filename, predicted_class, confidence, created_at
-    FROM predictions
-    ORDER BY created_at DESC
-    LIMIT 10
-''')
+                SELECT filename, predicted_class, confidence, created_at
+                FROM predictions
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT 10
+            ''', (session['user_id'],))
             predictions = c.fetchall()
             
             # Statistics
@@ -648,7 +649,6 @@ def test_model():
         "input_shape": INPUT_SHAPE,
         "classes": list(label_dict.values())[:5] if label_dict else []
     })
-
 
 @app.route('/save_detection', methods=['POST'])
 @login_required
