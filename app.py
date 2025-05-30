@@ -8,6 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Force CPU only
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
 
+import random
 import json
 import logging
 import sqlite3
@@ -391,11 +392,27 @@ def preprocess_image(img_path):
 
 
 def predict_disease(image_path):
-    logger.info(f"Fake prediction for: {image_path}")
-    # Simulate delay (optional)
-    # import time; time.sleep(1)
-    # Return a dummy class name and confidence score
-    return "FakeLeafDisease", 0.95
+    logger.info(f"Mock prediction for: {image_path}")
+
+    # List of realistic plant diseases
+    fake_diseases = [
+        "Tomato___Late_blight",
+        "Potato___Early_blight",
+        "Corn___Common_rust",
+        "Grape___Black_rot",
+        "Apple___Scab",
+        "Tomato___Septoria_leaf_spot",
+        "Pepper___Bacterial_spot",
+        "Strawberry___Leaf_scorch",
+        "Soybean___Healthy",
+        "Tomato___YellowLeafCurlVirus"
+    ]
+
+    predicted_class = random.choice(fake_diseases)
+    confidence = round(random.uniform(0.85, 0.99), 2)  # Random confidence between 85% and 99%
+
+    logger.info(f"Fake result: {predicted_class} with confidence {confidence}")
+    return predicted_class, confidence
 
 
 def get_ai_treatment(disease_name, confidence_score=0.0):
