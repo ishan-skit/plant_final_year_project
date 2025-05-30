@@ -764,8 +764,10 @@ def predict():
                                    treatment_info=treatment_info)
 
         except Exception as e:
-            logger.error(f"Prediction error: {e}")
-            flash("Error processing image. Please try again.")
+            import traceback
+            logger.error("Prediction error occurred!")
+            logger.error(traceback.format_exc())
+            flash(f"Error processing image: {str(e)}")
             return render_template('predict.html')
 
     return render_template('predict.html')
