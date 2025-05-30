@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: plant-disease-detection
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn --timeout 120 app:app
+    autoDeploy: true
+    envVars:
+      - key: SECRET_KEY
+        value: your_generated_secret_key
+      - key: GEMINI_API_KEY
+        value: your_api_key
+      - key: GOOGLE_CLIENT_ID
+        value: your_client_id
+      - key: GOOGLE_CLIENT_SECRET
+        value: your_client_secret
+      - key: PORT
+        value: 10000  
+    region: oregon 

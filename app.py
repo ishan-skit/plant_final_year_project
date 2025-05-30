@@ -92,6 +92,9 @@ if os.getenv('GOOGLE_CLIENT_ID') and os.getenv('GOOGLE_CLIENT_SECRET'):
 # Constants matching train_model.py EXACTLY
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
 MODEL_PATH = 'model/model.h5'
+import os
+print("[DEBUG] Model exists:", os.path.exists(MODEL_PATH))
+
 LABELS_PATH = 'model/labels.json'
 TREATMENTS_PATH = 'plant_treatments.csv'
 IMG_SIZE = (128, 128)  # EXACT match with train_model.py
