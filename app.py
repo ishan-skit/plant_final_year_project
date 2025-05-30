@@ -1,25 +1,63 @@
-# Flask Plant Disease Detection App - Optimized for Render Deployment
+# Flask Plant Disease Detection App - Memory Optimized for Render
 import os
 import sys
+import gc
+import psutil
+import threading
+from datetime import datetime
 
-# CRITICAL: Set these environment variables FIRST
+# CRITICAL: Set environment variables FIRST before ANY TF imports
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TF logs
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Force CPU only
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
+os.environ['TF_MEMORY_GROWTH'] = 'false'
+os.environ['OMP_NUM_THREADS'] = '1'  # Limit OpenMP threads
+os.environ['OPENBLAS_NUM_THREADS'] = '1'  # Limit BLAS threads
+os.environ['MKL_NUM_THREADS'] = '1'  # Limit MKL threads
 
 import json
 import logging
 import sqlite3
-import gc
 import base64
 from io import BytesIO
-from datetime import datetime
 from datetime import timedelta
 from functools import wraps
 import numpy as np
 import pandas as pd
+
+# Import TensorFlow with memory optimization
 import tensorflow as tf
+
+# CRITICAL: Configure TensorFlow IMMEDIATELY after import
+def configure_tensorflow():
+    """Configure TensorFlow for minimal memory usage"""
+    try:
+        # Disable GPU completely
+        tf.config.set_visible_devices([], 'GPU')
+        
+        # Limit CPU threads
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        
+        # Disable experimental features
+        tf.config.experimental.enable_tensor_float_32_execution(False)
+        
+        # Set memory growth for CPU (if supported)
+        try:
+            cpus = tf.config.list_physical_devices('CPU')
+            if cpus:
+                tf.config.experimental.set_memory_growth(cpus[0], True)
+        except:
+            pass
+            
+        return True
+    except Exception as e:
+        print(f"TensorFlow config warning: {e}")
+        return False
+
+configure_tensorflow()
+
 from PIL import Image
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -29,11 +67,7 @@ from authlib.integrations.flask_client import OAuth
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# CRITICAL: Explicit layer registration to fix InputLayer deserialization
-import tensorflow.keras.layers
-tf.keras.layers.InputLayer = tf.keras.layers.InputLayer
-
-# Configure logging for Render deployment
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -44,16 +78,6 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Configure TensorFlow for stability
-try:
-    tf.config.set_visible_devices([], 'GPU')
-    tf.config.threading.set_inter_op_parallelism_threads(1)
-    tf.config.threading.set_intra_op_parallelism_threads(1)
-    tf.config.experimental.enable_tensor_float_32_execution(False)
-    logger.info("TensorFlow configured for Render CPU deployment")
-except Exception as e:
-    logger.warning(f"TensorFlow configuration warning: {e}")
-
 # Configure Gemini API
 if os.getenv("GEMINI_API_KEY"):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -62,9 +86,9 @@ if os.getenv("GEMINI_API_KEY"):
 # Flask App Configuration
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'render-plant-detection-2024')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit for Render
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # Reduced to 8MB
 
-# Database configuration for Render
+# Database configuration
 database_url = os.getenv('DATABASE_URL', 'sqlite:///plant_app.db')
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
@@ -89,197 +113,192 @@ if os.getenv('GOOGLE_CLIENT_ID') and os.getenv('GOOGLE_CLIENT_SECRET'):
         client_kwargs={'scope': 'openid email profile'}
     )
 
-# Constants matching train_model.py EXACTLY
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
+# Constants
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}  # Removed gif to save memory
 MODEL_PATH = 'model/model.h5'
-import os
-print("[DEBUG] Model exists:", os.path.exists(MODEL_PATH))
-
 LABELS_PATH = 'model/labels.json'
-TREATMENTS_PATH = 'plant_treatments.csv'
-IMG_SIZE = (128, 128)  # EXACT match with train_model.py
-INPUT_SHAPE = (128, 128, 3)  # EXACT match with train_model.py
+IMG_SIZE = (128, 128)
+INPUT_SHAPE = (128, 128, 3)
 
 # Configure session
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-app.config['SESSION_COOKIE_SECURE'] = True # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# Global variables
+# Global variables for lazy loading
 model = None
 label_dict = {}
-treatments_df = pd.DataFrame()
+model_lock = threading.Lock()
+last_prediction_time = None
 
-def load_model_safely():
-    """Enhanced model loading with multiple fallback strategies for InputLayer issues"""
-    global model, label_dict
+def get_memory_usage():
+    """Get current memory usage in MB"""
+    try:
+        process = psutil.Process()
+        return process.memory_info().rss / 1024 / 1024
+    except:
+        return 0
+
+def cleanup_memory():
+    """Aggressive memory cleanup"""
+    try:
+        gc.collect()
+        tf.keras.backend.clear_session()
+    except:
+        pass
+
+def load_model_lazy():
+    """
+    Enhanced lazy load model with multiple fallback strategies for version compatibility
+    """
+    global model, label_dict, last_prediction_time
     
-    max_retries = 4
-    
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"[LOAD] Model loading attempt {attempt + 1}/{max_retries}...")
+    with model_lock:
+        if model is not None:
+            last_prediction_time = datetime.now()
+            return True
             
-            if attempt == 0:
-                # Method 1: Load with custom objects and compile=False
-                logger.info("[METHOD 1] Loading with custom objects...")
-                custom_objects = {
-                    'InputLayer': tf.keras.layers.InputLayer,
-                }
-                
-                model = tf.keras.models.load_model(
-                    MODEL_PATH, 
-                    custom_objects=custom_objects,
-                    compile=False
-                )
-                
-                # Recompile manually
-                model.compile(
-                    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy']
-                )
-                
-            elif attempt == 1:
-                # Method 2: Load with compile=False only
-                logger.info("[METHOD 2] Loading with compile=False...")
+        try:
+            logger.info(f"Loading model... Current memory: {get_memory_usage():.1f}MB")
+            
+            # Clear any existing TF session
+            tf.keras.backend.clear_session()
+            
+            # Strategy 1: Try normal loading first
+            try:
+                logger.info("Attempting Strategy 1: Normal model loading")
                 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
                 
-                model.compile(
-                    optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy']
-                )
-                
-            elif attempt == 2:
-                # Method 3: Load and rebuild input layer
-                logger.info("[METHOD 3] Loading and rebuilding input layer...")
-                
-                # Load without compiling
-                temp_model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-                
-                # Create new input layer
-                new_input = tf.keras.layers.Input(shape=(128, 128, 3), name='input_layer')
-                
-                # Get all layers except input
-                layers_to_use = []
-                for i, layer in enumerate(temp_model.layers):
-                    if not isinstance(layer, tf.keras.layers.InputLayer):
-                        layers_to_use.append(layer)
-                
-                # Build new model
-                x = new_input
-                for layer in layers_to_use:
-                    x = layer(x)
-                
-                model = tf.keras.Model(inputs=new_input, outputs=x)
-                
-                # Copy weights
-                for old_layer, new_layer in zip(temp_model.layers, model.layers):
-                    if old_layer.get_weights():
-                        new_layer.set_weights(old_layer.get_weights())
-                
-                # Compile
+                # Recompile with compatible optimizer
                 model.compile(
                     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                     loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy']
+                    metrics=['accuracy'],
+                    run_eagerly=False
                 )
+                logger.info("✅ Strategy 1 successful")
                 
-                del temp_model
+            except Exception as e1:
+                logger.warning(f"Strategy 1 failed: {e1}")
                 
-            elif attempt == 3:
-                # Method 4: Try loading architecture and weights separately (if they exist)
-                logger.info("[METHOD 4] Trying architecture + weights fallback...")
-                
-                arch_path = 'model/model_architecture.json'
-                weights_path = 'model/model_weights.h5'
-                
-                if os.path.exists(arch_path) and os.path.exists(weights_path):
-                    with open(arch_path, 'r') as f:
-                        model_json = f.read()
+                # Strategy 2: Load with custom objects and different compile options
+                try:
+                    logger.info("Attempting Strategy 2: Custom objects loading")
+                    model = tf.keras.models.load_model(
+                        MODEL_PATH, 
+                        compile=False,
+                        custom_objects={}
+                    )
                     
-                    model = tf.keras.models.model_from_json(model_json)
-                    model.load_weights(weights_path)
-                    
+                    # Simple recompilation
                     model.compile(
                         optimizer='adam',
                         loss='sparse_categorical_crossentropy',
                         metrics=['accuracy']
                     )
-                else:
-                    raise FileNotFoundError("Architecture/weights files not found")
+                    logger.info("✅ Strategy 2 successful")
+                    
+                except Exception as e2:
+                    logger.warning(f"Strategy 2 failed: {e2}")
+                    
+                    # Strategy 3: Try loading SavedModel format if available
+                    try:
+                        logger.info("Attempting Strategy 3: SavedModel format")
+                        saved_model_path = MODEL_PATH.replace('.h5', '_savedmodel')
+                        if os.path.exists(saved_model_path):
+                            model = tf.keras.models.load_model(saved_model_path, compile=False)
+                            model.compile(
+                                optimizer='adam',
+                                loss='sparse_categorical_crossentropy',
+                                metrics=['accuracy']
+                            )
+                            logger.info("✅ Strategy 3 successful")
+                        else:
+                            raise Exception("SavedModel format not available")
+                            
+                    except Exception as e3:
+                        logger.error(f"All loading strategies failed: {e1}, {e2}, {e3}")
+                        model = None
+                        return False
             
-            # Test the loaded model
-            logger.info("[TEST] Testing loaded model...")
-            dummy_input = np.random.random((1, 128, 128, 3)).astype(np.float32)
-            test_prediction = model.predict(dummy_input, verbose=0)
+            # Load labels
+            with open(LABELS_PATH, 'r') as f:
+                label_map = json.load(f)
+            label_dict = {v: k for k, v in label_map.items()}
             
-            logger.info(f"[SUCCESS] Model loaded successfully! Output shape: {test_prediction.shape}")
-            logger.info(f"[SUCCESS] Method {attempt + 1} worked!")
-            break
-            
-        except Exception as e:
-            logger.warning(f"[RETRY] Method {attempt + 1} failed: {str(e)[:100]}...")
-            
-            if attempt == max_retries - 1:
-                logger.error("[ERROR] All model loading methods failed!")
-                logger.error(f"Final error: {e}")
+            # Test the model with a dummy prediction
+            try:
+                dummy_input = np.random.random((1, 128, 128, 3))
+                test_pred = model.predict(dummy_input, batch_size=1, verbose=0)
+                logger.info(f"Model test successful: output shape {test_pred.shape}")
+                del dummy_input, test_pred  # Clean up test variables
+            except Exception as test_error:
+                logger.error(f"Model test failed: {test_error}")
+                model = None
                 return False
             
-            # Clear any partially loaded model
-            model = None
-            tf.keras.backend.clear_session()
-    
-    # Load labels
-    try:
-        with open(LABELS_PATH, 'r') as f:
-            label_map = json.load(f)
-        label_dict = {v: k for k, v in label_map.items()}
-        logger.info(f"[SUCCESS] Loaded {len(label_dict)} class labels")
-        
-        # Verify model output matches label count
-        if test_prediction.shape[1] != len(label_dict):
-            logger.warning(f"[WARNING] Model output ({test_prediction.shape[1]}) doesn't match label count ({len(label_dict)})")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"[ERROR] Failed to load labels: {e}")
-        return False
-
-def diagnose_model_issue():
-    """Diagnose model file to understand the issue"""
-    try:
-        logger.info("=== MODEL DIAGNOSIS ===")
-        logger.info(f"Model file exists: {os.path.exists(MODEL_PATH)}")
-        logger.info(f"Labels file exists: {os.path.exists(LABELS_PATH)}")
-        
-        if os.path.exists(MODEL_PATH):
-            file_size = os.path.getsize(MODEL_PATH)
-            logger.info(f"Model file size: {file_size:,} bytes")
+            last_prediction_time = datetime.now()
+            logger.info(f"Model loaded successfully! Memory: {get_memory_usage():.1f}MB")
+            logger.info(f"Model has {len(label_dict)} classes")
             
-            # Try to peek into the HDF5 structure
-            try:
-                import h5py
-                with h5py.File(MODEL_PATH, 'r') as f:
-                    logger.info("Model file structure (top level):")
-                    for key in f.keys():
-                        logger.info(f"  - {key}")
-            except Exception as e:
-                logger.info(f"Could not read HDF5 structure: {e}")
-        
-        logger.info(f"TensorFlow version: {tf.__version__}")
-        logger.info(f"Python version: {sys.version}")
-        logger.info("=== END DIAGNOSIS ===")
-        
-    except Exception as e:
-        logger.error(f"Diagnosis failed: {e}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            model = None
+            label_dict = {}
+            cleanup_memory()
+            return False
+ 
 
-# Database initialization
+def unload_model():
+    """Unload model to free memory"""
+    global model, label_dict
+    
+    with model_lock:
+        if model is not None:
+            logger.info(f"Unloading model... Current memory: {get_memory_usage():.1f}MB")
+            del model
+            model = None
+            label_dict = {}
+            cleanup_memory()
+            logger.info(f"Model unloaded. Memory: {get_memory_usage():.1f}MB")
+
+def should_unload_model():
+    """Check if model should be unloaded to save memory"""
+    if model is None or last_prediction_time is None:
+        return False
+    
+    # Unload if not used for 10 minutes
+    time_since_last_use = datetime.now() - last_prediction_time
+    return time_since_last_use.total_seconds() > 600
+
+# Background task to manage memory
+def memory_manager():
+    """Background thread to manage memory usage"""
+    import time
+    while True:
+        try:
+            time.sleep(60)  # Check every minute
+            
+            current_memory = get_memory_usage()
+            
+            # If memory usage is high or model hasn't been used recently
+            if current_memory > 400 or should_unload_model():  # 400MB threshold
+                if model is not None:
+                    logger.info(f"High memory usage ({current_memory:.1f}MB), unloading model")
+                    unload_model()
+                    
+        except Exception as e:
+            logger.error(f"Memory manager error: {e}")
+
+# Start memory manager thread
+memory_thread = threading.Thread(target=memory_manager, daemon=True)
+memory_thread.start()
+
 def init_db():
-    """Initialize SQLite database for Render deployment"""
+    """Initialize database"""
     try:
         with sqlite3.connect('plant_app.db') as conn:
             c = conn.cursor()
@@ -324,13 +343,12 @@ def init_db():
 init_db()
 
 def getImmediateAction(disease_name):
-    """Get immediate action recommendation based on disease name"""
+    """Get immediate action recommendation"""
     if not disease_name:
         return "Monitor plant condition"
     
     disease_lower = disease_name.lower()
     
-    # Define immediate actions for different diseases
     if 'healthy' in disease_lower:
         return "Continue current care routine"
     elif any(word in disease_lower for word in ['blight', 'rot', 'wilt']):
@@ -346,10 +364,8 @@ def getImmediateAction(disease_name):
     else:
         return "Isolate plant and consult treatment guide"
 
-# Make the function available in Jinja templates
 app.jinja_env.globals.update(getImmediateAction=getImmediateAction)
 
-# Utility functions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -363,63 +379,91 @@ def login_required(f):
     return decorated_function
 
 def preprocess_image(img_path):
-    """Preprocess image EXACTLY as in train_model.py"""
+    """Memory-efficient image preprocessing"""
     try:
-        # Load and resize to exact training size
-        img = Image.open(img_path).convert('RGB')
-        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
-        
-        # Convert to array and normalize EXACTLY as training
-        img_array = np.array(img, dtype=np.float32)
+        # Load and resize
+        with Image.open(img_path) as img:
+            img = img.convert('RGB')
+            img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
+            
+            # Convert to array efficiently
+            img_array = np.array(img, dtype=np.float32)
+            
+        # Normalize
         img_array = np.expand_dims(img_array, axis=0)
-        img_array = img_array / 255.0  # EXACT normalization as train_model.py
+        img_array = img_array / 255.0
         
         return img_array
     except Exception as e:
         logger.error(f"Image preprocessing error: {e}")
         return None
 
+
 def predict_disease(img_path):
-    """Predict disease with error handling for Render deployment"""
-    if model is None:
-        return "Model not loaded", 0.0
-    
+    """
+    Enhanced disease prediction with better error handling
+    """
     try:
+        # Load model if needed
+        if not load_model_lazy():
+            return "Model loading failed - version compatibility issue", 0.0
+        
+        # Preprocess image
         img_array = preprocess_image(img_path)
         if img_array is None:
             return "Image processing failed", 0.0
         
-        # Predict with error handling
-        preds = model.predict(img_array, verbose=0)
+        # Predict with enhanced error handling
+        with model_lock:
+            try:
+                # Try batch prediction first
+                preds = model.predict(img_array, batch_size=1, verbose=0)
+            except Exception as pred_error:
+                logger.warning(f"Batch prediction failed: {pred_error}")
+                try:
+                    # Fallback to single prediction
+                    preds = model(img_array, training=False)
+                    if hasattr(preds, 'numpy'):
+                        preds = preds.numpy()
+                except Exception as single_pred_error:
+                    logger.error(f"Single prediction also failed: {single_pred_error}")
+                    return "Prediction failed - model compatibility issue", 0.0
+            
         class_index = np.argmax(preds)
         confidence = float(np.max(preds))
         class_name = label_dict.get(class_index, "Unknown")
         
+        # Cleanup
+        del img_array, preds
+        cleanup_memory()
+        
         logger.info(f"Prediction: {class_name} (confidence: {confidence:.3f})")
+        logger.info(f"Memory after prediction: {get_memory_usage():.1f}MB")
+        
         return class_name, confidence
         
     except Exception as e:
         logger.error(f"Prediction error: {e}")
+        cleanup_memory()
         return f"Prediction failed: {str(e)}", 0.0
 
 def get_ai_treatment(disease_name, confidence_score=0.0):
-    """Get AI treatment with fallback for Render deployment"""
+    """Get AI treatment with fallback"""
     try:
         if not os.getenv("GEMINI_API_KEY"):
             return get_fallback_treatment(disease_name)
         
         model_ai = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"""
-        As a plant pathology expert, provide treatment for: "{disease_name}"
+        As a plant pathology expert, provide concise treatment for: "{disease_name}"
         
         Include:
-        1. Disease overview
-        2. Treatment options (chemical & organic)
-        3. Prevention measures
-        4. Severity assessment
-        5. Monitoring advice
+        1. Brief disease overview
+        2. Primary treatment (chemical & organic)
+        3. Key prevention measures
+        4. Severity level
         
-        Keep response practical and concise for farmers.
+        Keep response under 200 words for mobile users.
         """
         
         response = model_ai.generate_content(prompt)
@@ -442,48 +486,29 @@ def get_ai_treatment(disease_name, confidence_score=0.0):
         return get_fallback_treatment(disease_name)
 
 def get_fallback_treatment(disease_name):
-    """Fallback treatment when AI is unavailable"""
+    """Fallback treatment when AI unavailable"""
     return {
         'disease': disease_name,
-        'treatment': f'For {disease_name}: Apply general fungicide if fungal disease, or contact local agricultural extension office for specific treatment recommendations.',
-        'prevention': 'Maintain proper plant spacing, avoid overhead watering, remove infected plant parts, and ensure good air circulation.',
-        'organic_treatment': 'Use neem oil, copper-based fungicides, or baking soda solution as organic alternatives.',
-        'chemical_treatment': 'Consult with agricultural specialist for appropriate chemical treatments based on local regulations.',
+        'treatment': f'For {disease_name}: Apply appropriate fungicide if fungal, or contact agricultural extension office.',
+        'prevention': 'Maintain proper spacing, avoid overhead watering, remove infected parts.',
+        'organic_treatment': 'Use neem oil, copper fungicides, or baking soda solution.',
+        'chemical_treatment': 'Consult agricultural specialist for appropriate treatments.',
         'severity': 'Requires assessment',
         'source': 'Fallback'
     }
 
 def get_treatment_info(disease_name, confidence_score=0.0):
-    """Get treatment info with CSV fallback and AI enhancement"""
-    CONFIDENCE_THRESHOLD = 0.7
-    
-    # Check CSV first if available and confidence is high
-    if not treatments_df.empty and confidence_score >= CONFIDENCE_THRESHOLD:
-        treatment_row = treatments_df[treatments_df['disease'] == disease_name]
-        if treatment_row.empty:
-            treatment_row = treatments_df[treatments_df['disease'].str.contains(disease_name, case=False, na=False)]
-        
-        if not treatment_row.empty:
-            row = treatment_row.iloc[0]
-            return {
-                'disease': row['disease'],
-                'treatment': row['treatment'],
-                'prevention': row['prevention'],
-                'organic_treatment': row['organic_treatment'],
-                'chemical_treatment': row['chemical_treatment'],
-                'severity': row['severity'],
-                'source': 'Database'
-            }
-    
-    # Use AI for unknown diseases or low confidence
+    """Get treatment information"""
     return get_ai_treatment(disease_name, confidence_score)
 
-# Health check for Render
+# Health check
 @app.route('/health')
 def health_check():
-    """Health check endpoint for Render deployment"""
+    """Health check for Render"""
+    memory_usage = get_memory_usage()
     return jsonify({
         "status": "healthy",
+        "memory_mb": round(memory_usage, 1),
         "model_loaded": model is not None,
         "labels_loaded": len(label_dict) > 0,
         "tf_version": tf.__version__
@@ -622,31 +647,22 @@ def logout():
     flash("Logged out successfully.")
     return redirect(url_for('login'))
 
-# Main application routes
 @app.route('/dashboard')
 @login_required
 def dashboard():
     try:
-        # Get session predictions for immediate updates
-        session_predictions = session.get('predictions', [])
-        
-        # Ensure session predictions is always a list
-        if not isinstance(session_predictions, list):
-            session_predictions = []
-        
-        # Get database predictions for historical data
+        # Get recent predictions
         with sqlite3.connect('plant_app.db') as conn:
             c = conn.cursor()
             
-            # Recent predictions from database
             c.execute('''
                 SELECT filename, predicted_class, confidence, created_at
                 FROM predictions
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-                LIMIT 20
+                LIMIT 10
             ''', (session['user_id'],))
-            db_predictions = c.fetchall()
+            predictions = c.fetchall()
             
             # Statistics
             c.execute('''
@@ -660,40 +676,11 @@ def dashboard():
             ''', (session['user_id'],))
             stats = c.fetchone() or (0, 0, 0, 0)
         
-        # Combine session and database predictions (session first for recent activity)
-        all_predictions = session_predictions + [list(p) for p in db_predictions]
-        
-        # Remove duplicates based on filename and limit to 20
-        seen_files = set()
-        unique_predictions = []
-        for pred in all_predictions:
-            filename = pred[0] if len(pred) > 0 else ''
-            if filename not in seen_files:
-                seen_files.add(filename)
-                unique_predictions.append(pred)
-                if len(unique_predictions) >= 20:
-                    break
-        
-        # Sort by timestamp if available (most recent first)
-        try:
-            unique_predictions = sorted(unique_predictions, 
-                                     key=lambda x: x[3] if len(x) > 3 else '', 
-                                     reverse=True)
-        except:
-            pass  # If sorting fails, use original order
-        
-        app.logger.info(f"Dashboard loaded with {len(unique_predictions)} predictions")
-        
-        return render_template('dashboard.html', 
-                            predictions=unique_predictions,
-                            stats=stats)
+        return render_template('dashboard.html', predictions=predictions, stats=stats)
                             
     except Exception as e:
-        app.logger.error(f"Dashboard error: {str(e)}")
-        # Return dashboard with empty data if there's an error
-        return render_template('dashboard.html', 
-                            predictions=[], 
-                            stats=(0, 0, 0, 0))
+        logger.error(f"Dashboard error: {e}")
+        return render_template('dashboard.html', predictions=[], stats=(0, 0, 0, 0))
 
 @app.route('/predict', methods=['GET', 'POST'])
 @login_required
@@ -718,29 +705,6 @@ def predict():
                         (session['user_id'], filename, predicted_class, confidence))
                     conn.commit()
 
-                # ALSO save to session for immediate dashboard updates
-                if 'predictions' not in session:
-                    session['predictions'] = []
-                
-                # Create prediction entry with timestamp
-                prediction_entry = [
-                    filename,  # image filename
-                    predicted_class,  # disease name
-                    confidence,  # confidence score (0-1)
-                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # timestamp
-                ]
-                
-                # Add to beginning of list (most recent first)
-                session['predictions'].insert(0, prediction_entry)
-                
-                # Keep only last 10 predictions in session to avoid bloat
-                session['predictions'] = session['predictions'][:10]
-                
-                # Make sure session is saved
-                session.modified = True
-                
-                app.logger.info(f"Saved prediction: {predicted_class} with {confidence:.3f} confidence")
-
                 return render_template('result.html', 
                                     filename=filename, 
                                     predicted_class=predicted_class, 
@@ -753,18 +717,15 @@ def predict():
             flash("Invalid file format or no file selected.")
             
     return render_template('predict.html')
-                     
 
 @app.route('/camera')
 @login_required
 def camera():
-    """Real-time camera detection page"""
     return render_template('camera.html')
 
 @app.route('/predict_camera', methods=['POST'])
 @login_required  
 def predict_camera():
-    """Handle camera capture"""
     try:
         data = request.get_json()
         if not data or 'image' not in data:
@@ -793,21 +754,6 @@ def predict_camera():
                 (session['user_id'], filename, predicted_class, confidence))
             conn.commit()
         
-        # ALSO save to session for immediate dashboard updates
-        if 'predictions' not in session:
-            session['predictions'] = []
-        
-        prediction_entry = [
-            filename,
-            predicted_class,
-            confidence,
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        ]
-        
-        session['predictions'].insert(0, prediction_entry)
-        session['predictions'] = session['predictions'][:10]
-        session.modified = True
-        
         return jsonify({
             'success': True,
             'filename': filename,
@@ -819,7 +765,6 @@ def predict_camera():
     except Exception as e:
         logger.error(f"Camera prediction error: {e}")
         return jsonify({'error': str(e)}), 500
-        
 
 @app.route('/about')
 @login_required
@@ -834,129 +779,6 @@ def contact():
         return redirect(url_for('contact'))
     return render_template('contact.html')
 
-# API endpoints
-@app.route('/api/ai_treatment', methods=['POST'])
-@login_required
-def api_ai_treatment():
-    try:
-        data = request.get_json()
-        disease = data.get('disease')
-        confidence = data.get('confidence', 0.0)
-        
-        if not disease:
-            return jsonify({"error": "Disease name is required"}), 400
-        
-        treatment_info = get_ai_treatment(disease, confidence)
-        return jsonify(treatment_info)
-    except Exception as e:
-        logger.error(f"AI treatment API error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/test_model')
-@login_required
-def test_model():
-    """Test endpoint for model functionality"""
-    return jsonify({
-        "model_loaded": model is not None,
-        "labels_count": len(label_dict),
-        "tf_version": tf.__version__,
-        "input_shape": INPUT_SHAPE,
-        "classes": list(label_dict.values())[:5] if label_dict else []
-    })
-
-@app.route('/save_detection', methods=['POST'])
-@login_required
-def save_detection():
-    try:
-        data = request.get_json()
-        predicted_class = data.get('predicted_class')
-        confidence = data.get('confidence')
-        image_data = data.get('image')  # Base64 string
-
-        if not (predicted_class and confidence and image_data):
-            return jsonify({"error": "Incomplete data"}), 400
-
-        # Decode and save image
-        image_bytes = base64.b64decode(image_data.split(',')[1])
-        filename = f"manual_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        with open(filepath, 'wb') as f:
-            f.write(image_bytes)
-
-        # Save to DB
-        with sqlite3.connect('plant_app.db') as conn:
-            c = conn.cursor()
-            c.execute('''
-                INSERT INTO predictions (user_id, filename, predicted_class, confidence)
-                VALUES (?, ?, ?, ?)''',
-                (session['user_id'], filename, predicted_class, float(confidence)))
-            conn.commit()
-
-        return jsonify({"success": True, "filename": filename})
-
-    except Exception as e:
-        logger.error(f"Error saving detection: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/clear_predictions', methods=['POST'])
-@login_required
-def clear_predictions():
-    """Clear user's prediction history"""
-    try:
-        data = request.get_json()
-        clear_type = data.get('type', 'all')  # 'session', 'database', or 'all'
-        
-        if clear_type in ['session', 'all']:
-            # Clear session predictions
-            session['predictions'] = []
-            session.modified = True
-        
-        if clear_type in ['database', 'all']:
-            # Clear database predictions
-            with sqlite3.connect('plant_app.db') as conn:
-                c = conn.cursor()
-                c.execute('DELETE FROM predictions WHERE user_id = ?', (session['user_id'],))
-                conn.commit()
-        
-        return jsonify({
-            'success': True, 
-            'message': f'Prediction history cleared successfully',
-            'cleared': clear_type
-        })
-        
-    except Exception as e:
-        logger.error(f"Clear predictions error: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/clear_recent', methods=['POST'])
-@login_required  
-def clear_recent():
-    """Clear only recent predictions (last 24 hours)"""
-    try:
-        # Clear recent session predictions
-        session['predictions'] = []
-        session.modified = True
-        
-        # Clear recent database predictions (last 24 hours)
-        with sqlite3.connect('plant_app.db') as conn:
-            c = conn.cursor()
-            c.execute('''
-                DELETE FROM predictions 
-                WHERE user_id = ? 
-                AND created_at >= datetime('now', '-1 day')
-            ''', (session['user_id'],))
-            conn.commit()
-        
-        return jsonify({
-            'success': True, 
-            'message': 'Recent predictions cleared successfully'
-        })
-        
-    except Exception as e:
-        logger.error(f"Clear recent predictions error: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
@@ -967,24 +789,11 @@ def internal_error(error):
     logger.error(f"Internal error: {error}")
     return render_template('errors/500.html'), 500
 
-# Initialize model on startup
-def initialize_app():
-    """Initialize the application"""
-    logger.info("Initializing application...")
-    init_db()
-    diagnose_model_issue()
-    load_model_safely()
-    logger.info("Application initialization complete")
-
-initialize_app()
-
-# Application startup
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
 
     logger.info(f"Starting Flask app on port {port}")
-    logger.info(f"Model loaded: {model is not None}")
-    logger.info(f"Labels loaded: {len(label_dict)} classes")
+    logger.info(f"Initial memory usage: {get_memory_usage():.1f}MB")
 
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
