@@ -29,6 +29,7 @@ from authlib.integrations.flask_client import OAuth
 import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import send_from_directory
+import secrets
 
 # Load labels first
 with open('model/labels_reverse.json', 'r') as f:
@@ -66,7 +67,7 @@ if os.getenv("GEMINI_API_KEY"):
 
 # Constants matching train_model.py EXACTLY
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
-MODEL_PATH = 'model/model.h5'
+MODEL_PATH = 'model/best_model.h5' if os.path.exists('model/best_model.h5') else 'model/model.h5'
 LABELS_PATH = 'model/labels.json'
 TREATMENTS_PATH = 'plant_treatments.csv'
 IMG_SIZE = (128, 128)  # EXACT match with train_model.py
@@ -78,7 +79,7 @@ label_dict = {}
 
 # Flask App Configuration
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'render-plant-detection-2024')
+app.secret_key = '44ebe5695c40815b6ba777dbec428ca7ef179cb59cef1a95d1bb10b98960bf98'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit for Render
 
 # Database configuration for Render
@@ -220,7 +221,9 @@ def load_model_safely():
             # Test the loaded model
             logger.info("[TEST] Testing loaded model...")
             dummy_input = np.random.random((1, 128, 128, 3)).astype(np.float32)
+            logger.info("Running model.predict...")
             test_prediction = model.predict(dummy_input, verbose=0)
+            logger.info("Prediction complete")
             
             logger.info(f"[SUCCESS] Model loaded successfully! Output shape: {test_prediction.shape}")
             logger.info(f"[SUCCESS] Method {attempt + 1} worked!")
@@ -394,7 +397,9 @@ def predict_disease(image_path):
         img_array = np.expand_dims(img_array, axis=0)
         img_array = img_array / 255.0
 
+        logger.info("Running model.predict...")
         predictions = model.predict(img_array)
+        logger.info("Prediction complete")
         predicted_class_index = np.argmax(predictions[0])
         confidence = float(predictions[0][predicted_class_index])
         predicted_class = LABELS_REVERSE[str(predicted_class_index)]
