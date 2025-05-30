@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 from flask import send_from_directory
 
 # Load labels first
-with open('labels_reverse.json', 'r') as f:
+with open('model/labels_reverse.json', 'r') as f:
     LABELS_REVERSE = json.load(f)
 
 # CRITICAL: Explicit layer registration to fix InputLayer deserialization
