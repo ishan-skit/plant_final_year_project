@@ -1217,11 +1217,30 @@
 <script>
 
 function clearTimeline(type) {
-    clearPredictions(type, 'timeline');
+    fetch('/clear_predictions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: type === 'recent' ? 'recent' : 'all' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Successfully cleared ${type} predictions`, 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showAlert(`Error clearing predictions: ${data.error}`, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert(`Error: ${error.message}`, 'danger');
+    });
 }
 
+
 function clearDiagnoses(type) {
-    clearPredictions(type, 'diagnoses');
+    clearTimeline(type); // Same function as they do the same thing
 }
 
 function clearPredictions(type, section) {
@@ -1256,11 +1275,16 @@ function clearPredictions(type, section) {
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeAdvancedDashboard();
-    createHealthChart();
     createQuickStatsChart();
-    animateStatsCards();
-    initializeParticleEffects();
     setupPlantSelector();
+    
+    // Setup event listeners for all action buttons
+    document.querySelectorAll('.quick-action').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.querySelector('span').textContent.toLowerCase();
+            showAlert(`Opening ${action}...`, 'info');
+        });
+    });
 });
 
 function setupPlantSelector() {
@@ -1269,37 +1293,37 @@ function setupPlantSelector() {
         option.addEventListener('click', function() {
             options.forEach(opt => opt.classList.remove('active'));
             this.classList.add('active');
-            const category = this.dataset.category;
-            filterPredictionsByCategory(category);
+            filterPredictionsByCategory(this.dataset.category);
         });
     });
 }
 
 function filterPredictionsByCategory(category) {
-    // In a real implementation, this would filter the predictions
-    // For now, we'll just show a loading state
-    document.getElementById('loadingSpinner').style.display = 'block';
-    
-    setTimeout(() => {
-        document.getElementById('loadingSpinner').style.display = 'none';
-        // Here you would typically reload the predictions based on the category
-        // For this example, we'll just show an alert
-        if (category !== 'all') {
-            showAlert(`Filtering by ${category} plants`, 'info');
-        }
-    }, 1000);
+    if (category === 'all') {
+        document.querySelectorAll('.prediction-card-advanced, .timeline-item').forEach(el => {
+            el.style.display = 'block';
+        });
+    } else {
+        // In a real app, you would filter based on actual plant categories
+        showAlert(`Filtering by ${category} plants`, 'info');
+    }
 }
 
+// Chart initialization
 function createQuickStatsChart() {
     const ctx = document.getElementById('quickStatsChart');
     if (!ctx) return;
 
+    const healthyCount = parseInt('{{ healthy_count }}') || 0;
+    const diseaseCount = parseInt('{{ disease_count }}') || 0;
+    const otherCount = Math.max(0, parseInt('{{ total_scans }}') - healthyCount - diseaseCount);
+
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Healthy', 'Diseased', 'Under Treatment'],
+            labels: ['Healthy', 'Diseased', 'Other'],
             datasets: [{
-                data: [75, 15, 10], // Example data
+                data: [healthyCount, diseaseCount, otherCount],
                 backgroundColor: [
                     'rgba(76, 175, 80, 0.8)',
                     'rgba(244, 67, 54, 0.8)',
@@ -1348,83 +1372,86 @@ function showAdvancedDetails(disease, confidence, date, imageSrc) {
         circle.style.strokeDashoffset = offset;
     }, 100);
 
-    // Load treatment info and steps
-    fetchAITreatment(disease);
-    loadTreatmentSteps(disease);
-
+    // Load treatment info
+    fetchTreatmentInfo(disease);
+    
+    // Show modal
     new bootstrap.Modal(document.getElementById('advancedModal')).show();
 }
 
-function fetchAITreatment(disease) {
-    // In a real app, this would fetch from an API
-    // For now, we'll use mock data
-    let treatment = "Apply a fungicide specifically designed for this plant disease. Remove affected leaves to prevent spread.";
-    let prevention = "Ensure proper air circulation, avoid overwatering, and maintain optimal sunlight conditions.";
-    
-    if (disease.toLowerCase().includes('healthy')) {
-        treatment = "Your plant appears healthy! Continue with current care routine.";
-        prevention = "Maintain consistent watering schedule and monitor for any changes in leaf color or texture.";
-    }
-    
-    document.getElementById('treatmentAdvanced').textContent = treatment;
-    document.getElementById('preventionTips').textContent = prevention;
+function fetchTreatmentInfo(disease) {
+    fetch('/api/ai_treatment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ disease: disease })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.treatment) {
+            document.getElementById('treatmentAdvanced').textContent = data.treatment;
+            document.getElementById('preventionTips').textContent = data.prevention || 'See treatment recommendations above';
+            
+            // Generate step-by-step treatment
+            const stepsContainer = document.getElementById('stepByStepTreatment');
+            stepsContainer.innerHTML = '';
+            
+            if (data.treatment.includes('\n')) {
+                // If treatment has multiple lines, split into steps
+                const steps = data.treatment.split('\n').filter(step => step.trim());
+                steps.forEach((step, index) => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'treatment-step';
+                    stepElement.innerHTML = `
+                        <h5>Step ${index + 1}</h5>
+                        <p>${step.trim()}</p>
+                    `;
+                    stepsContainer.appendChild(stepElement);
+                });
+            } else {
+                // Single step treatment
+                const stepElement = document.createElement('div');
+                stepElement.className = 'treatment-step';
+                stepElement.innerHTML = `
+                    <h5>Recommended Treatment</h5>
+                    <p>${data.treatment}</p>
+                `;
+                stepsContainer.appendChild(stepElement);
+            }
+        } else {
+            document.getElementById('treatmentAdvanced').textContent = 'Treatment information not available';
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching treatment info:', error);
+        document.getElementById('treatmentAdvanced').textContent = 'Error loading treatment information';
+    });
 }
 
-function loadTreatmentSteps(disease) {
-    const stepsContainer = document.getElementById('stepByStepTreatment');
-    stepsContainer.innerHTML = '';
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
     
-    // Example steps - in a real app, these would come from a database or API
-    const steps = [
-        {title: "Isolate Plant", content: "Immediately isolate the affected plant to prevent disease spread."},
-        {title: "Remove Affected Areas", content: "Using sterilized pruning tools, remove all visibly affected leaves and stems."},
-        {title: "Apply Treatment", content: "Apply recommended fungicide/bactericide according to product instructions."},
-        {title: "Monitor Progress", content: "Check plant daily for signs of improvement or further spread."},
-        {title: "Prevent Recurrence", content: "Adjust environmental conditions to prevent future outbreaks."}
-    ];
+    document.body.appendChild(alertDiv);
     
-    // Special steps for healthy plants
-    if (disease.toLowerCase().includes('healthy')) {
-        steps.length = 0; // Clear the array
-        steps.push(
-            {title: "Continue Current Care", content: "Maintain your current watering and fertilization schedule."},
-            {title: "Monitor Growth", content: "Regularly check for new growth and overall plant vigor."},
-            {title: "Preventative Measures", content: "Keep the plant in optimal conditions to maintain health."}
-        );
-    }
-    
-    steps.forEach((step, index) => {
-        const stepElement = document.createElement('div');
-        stepElement.className = 'treatment-step';
-        stepElement.innerHTML = `
-            <h5>${step.title}</h5>
-            <p>${step.content}</p>
-        `;
-        stepsContainer.appendChild(stepElement);
-    });
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => alertDiv.remove(), 150);
+    }, 3000);
 }
 
 function openAIAssistant() {
     const modal = new bootstrap.Modal(document.getElementById('aiAssistantModal'));
     modal.show();
-    
-    // Add welcome message
     addAIMessage("Hello! I'm your PlantCare AI Assistant. How can I help you with your plants today?");
 }
 
-function addAIMessage(message, isUser = false) {
-    const chatContainer = document.getElementById('aiChatContainer');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `mb-2 p-3 rounded ${isUser ? 'bg-primary text-white ms-5' : 'bg-secondary me-5'}`;
-    messageDiv.style.maxWidth = '80%';
-    messageDiv.style.wordWrap = 'break-word';
-    messageDiv.innerHTML = isUser ? 
-        `<strong>You:</strong> ${message}` : 
-        `<strong>PlantCare AI:</strong> ${message}`;
-    
-    chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-}
 
 function sendAIMessage() {
     const input = document.getElementById('aiChatInput');
@@ -1449,35 +1476,27 @@ function sendAIMessage() {
     }
 }
 
+function addAIMessage(message, isUser = false) {
+    const chatContainer = document.getElementById('aiChatContainer');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `mb-2 p-3 rounded ${isUser ? 'bg-primary text-white ms-5' : 'bg-secondary me-5'}`;
+    messageDiv.style.maxWidth = '80%';
+    messageDiv.innerHTML = isUser ? 
+        `<strong>You:</strong> ${message}` : 
+        `<strong>PlantCare AI:</strong> ${message}`;
+    
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
 function downloadReport() {
     showAlert("Generating and downloading your plant health report...", "success");
-    // In a real app, this would generate and download a PDF report
     setTimeout(() => {
         showAlert("Report downloaded successfully!", "success");
     }, 2000);
 }
 
-function showAlert(message, type) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.role = 'alert';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    
-    const container = document.createElement('div');
-    container.className = 'position-fixed top-0 end-0 p-3';
-    container.style.zIndex = '9999';
-    container.appendChild(alertDiv);
-    
-    document.body.appendChild(container);
-    
-    setTimeout(() => {
-        alertDiv.classList.remove('show');
-        setTimeout(() => container.remove(), 150);
-    }, 3000);
-}
+
 
 function showTreatmentGuide() {
     showAlert("Opening the comprehensive treatment guide...", "info");
@@ -1504,8 +1523,8 @@ function initializeParticleEffects() {
 
 // Initialize dashboard with any additional setup
 function initializeAdvancedDashboard() {
-    console.log("Advanced dashboard initialized");
-    // Any additional initialization code would go here
+    // Any initialization code can go here
+    console.log("Dashboard initialized");
 }
 
 // Create health chart (placeholder for actual implementation)

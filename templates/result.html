@@ -577,6 +577,40 @@
         text-align: center;
     }
 }
+
+/* Immediate Action Section */
+.immediate-action {
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.immediate-action-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    color: #c2410c;
+}
+
+.immediate-action-header i {
+    font-size: 1.5rem;
+}
+
+.immediate-action-header h6 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.immediate-action-content {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    border-left: 4px solid #ea580c;
+}
 </style>
 
 <section class="result-section">
@@ -596,10 +630,10 @@
                     <!-- Source Indicator -->
                     {% if treatment_info.source %}
                     <div class="source-indicator 
-                        {% if treatment_info.source == 'AI-generated' %}source-ai
+                        {% if treatment_info.source == 'Gemini AI' %}source-ai
                         {% elif treatment_info.source == 'Database' %}source-database
                         {% else %}source-fallback{% endif %}">
-                        {% if treatment_info.source == 'AI-generated' %}
+                        {% if treatment_info.source == 'Gemini AI' %}
                             <i class="fas fa-robot me-1"></i>AI-Powered
                         {% elif treatment_info.source == 'Database' %}
                             <i class="fas fa-database me-1"></i>Database
@@ -624,7 +658,7 @@
                             <i class="fas fa-chart-line me-1"></i>
                             Confidence: {{ confidence }}%
                         </div>
-                        {% if treatment_info.source == 'AI-generated' %}
+                        {% if treatment_info.source == 'Gemini AI' %}
                         <div class="ai-badge">
                             <i class="fas fa-robot me-1"></i>Enhanced with AI Analysis
                         </div>
@@ -639,7 +673,18 @@
                         {% endif %}
                     </div>
 
-                    <div class="treatment-section {% if treatment_info.source == 'AI-generated' %}ai-powered{% endif %}">
+                    <!-- Immediate Action Section -->
+                    <div class="immediate-action">
+                        <div class="immediate-action-header">
+                            <i class="fas fa-bolt" style="color: #ea580c;"></i>
+                            <h6>Immediate Action Required</h6>
+                        </div>
+                        <div class="immediate-action-content">
+                            {{ getImmediateAction(predicted_class) }}
+                        </div>
+                    </div>
+
+                    <div class="treatment-section {% if treatment_info.source == 'Gemini AI' %}ai-powered{% endif %}">
                         <div class="treatment-header">
                             <i class="fas fa-stethoscope" style="font-size: 1.5rem;"></i>
                             <h5>Treatment Information</h5>
@@ -656,85 +701,62 @@
                                 </div>
                             </div>
 
-                            <!-- Treatment - Main Section -->
-                           <!-- Enhanced Treatment Protocol Section - FIXED VERSION -->
-<div class="treatment-item treatment-protocol-enhanced">
-    <div class="treatment-label">
-        <i class="fas fa-medkit me-2" style="color: var(--result-warning);"></i>Treatment Protocol
-    </div>
-    
-    {% if treatment_info.treatment %}
-        <div class="enhanced-treatment-content">
-            <!-- Single treatment card instead of multiple repetitive cards -->
-            <div class="treatment-step-card">
-                <div class="step-header-enhanced">
-                    <div class="step-icon-enhanced treatment">
-                        <i class="fas fa-flask"></i>
-                    </div>
-                    <div class="step-title-enhanced">Treatment Instructions</div>
-                </div>
-                
-                <div class="step-content-enhanced">
-                    <!-- Process the treatment text more efficiently -->
-                    {% set treatment_text = treatment_info.treatment.strip() %}
-                    {% if '\n\n' in treatment_text %}
-                        <!-- If there are clear paragraph breaks, use them -->
-                        {% set treatment_paragraphs = treatment_text.split('\n\n') %}
-                        {% for paragraph in treatment_paragraphs %}
-                            {% if paragraph.strip() %}
-                                <div class="treatment-point">
-                                    <i class="fas fa-check-circle point-icon"></i>
-                                    <span class="point-text">{{ paragraph.strip() }}</span>
+                            <!-- Treatment Protocol Section -->
+                            <div class="treatment-item treatment-protocol-enhanced">
+                                <div class="treatment-label">
+                                    <i class="fas fa-medkit me-2" style="color: var(--result-warning);"></i>Treatment Protocol
                                 </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% elif '\n' in treatment_text %}
-                        <!-- If there are line breaks, use them -->
-                        {% set treatment_lines = treatment_text.split('\n') %}
-                        {% for line in treatment_lines %}
-                            {% if line.strip() and line.strip() != '' %}
-                                <div class="treatment-point">
-                                    <i class="fas fa-check-circle point-icon"></i>
-                                    <span class="point-text">{{ line.strip() }}</span>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <!-- If it's just a single block of text, split by sentences -->
-                        {% set sentences = treatment_text.split('.') %}
-                        {% for sentence in sentences %}
-                            {% if sentence.strip() and sentence.strip() != '' %}
-                                <div class="treatment-point">
-                                    <i class="fas fa-check-circle point-icon"></i>
-                                    <span class="point-text">{{ sentence.strip() }}{% if not sentence.endswith('.') %}.{% endif %}</span>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                </div>
-            </div>
-            
-            {% if treatment_info.source == 'AI-generated' %}
-                <div class="ai-enhancement-badge">
-                    <i class="fas fa-robot me-2"></i>
-                    <span>Enhanced with AI Analysis</span>
-                </div>
-            {% endif %}
-        </div>
-    {% else %}
-        <div class="fallback-treatment">
-            <div class="fallback-icon">
-                <i class="fas fa-user-md"></i>
-            </div>
-            <div class="fallback-text">
-                Consult with a plant specialist or agricultural expert for specific treatment recommendations tailored to your plant's condition.
-            </div>
-        </div>
-    {% endif %}
-</div>
+                                
+                                {% if treatment_info.treatment %}
+                                    <div class="enhanced-treatment-content">
+                                        <div class="treatment-step-card">
+                                            <div class="step-header-enhanced">
+                                                <div class="step-icon-enhanced treatment">
+                                                    <i class="fas fa-flask"></i>
+                                                </div>
+                                                <div class="step-title-enhanced">Treatment Instructions</div>
+                                            </div>
+                                            
+                                            <div class="step-content-enhanced">
+                                                {% if '\n' in treatment_info.treatment %}
+                                                    {% for paragraph in treatment_info.treatment.split('\n') %}
+                                                        {% if paragraph.strip() %}
+                                                            <div class="treatment-point">
+                                                                <i class="fas fa-check-circle point-icon"></i>
+                                                                <span class="point-text">{{ paragraph }}</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <div class="treatment-point">
+                                                        <i class="fas fa-check-circle point-icon"></i>
+                                                        <span class="point-text">{{ treatment_info.treatment }}</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        {% if treatment_info.source == 'Gemini AI' %}
+                                            <div class="ai-enhancement-badge">
+                                                <i class="fas fa-robot me-2"></i>
+                                                <span>Enhanced with AI Analysis</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="fallback-treatment">
+                                        <div class="fallback-icon">
+                                            <i class="fas fa-user-md"></i>
+                                        </div>
+                                        <div class="fallback-text">
+                                            Consult with a plant specialist or agricultural expert for specific treatment recommendations.
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
 
-<!-- Additional Treatment Options -->
-                            {% if treatment_info.organic_treatment and treatment_info.organic_treatment != 'AI-generated organic treatment included above' %}
+                            <!-- Additional Treatment Options -->
+                            {% if treatment_info.organic_treatment and treatment_info.organic_treatment != 'Included in AI response above' %}
                             <div class="treatment-item">
                                 <div class="treatment-label">
                                     <i class="fas fa-leaf me-2" style="color: var(--result-success);"></i>Organic Treatment
@@ -743,7 +765,7 @@
                             </div>
                             {% endif %}
 
-                            {% if treatment_info.chemical_treatment and treatment_info.chemical_treatment != 'AI-generated chemical treatment included above' %}
+                            {% if treatment_info.chemical_treatment and treatment_info.chemical_treatment != 'Included in AI response above' %}
                             <div class="treatment-item">
                                 <div class="treatment-label">
                                     <i class="fas fa-flask me-2" style="color: var(--result-danger);"></i>Chemical Treatment
@@ -752,8 +774,18 @@
                             </div>
                             {% endif %}
 
+                            <!-- Prevention Measures -->
+                            {% if treatment_info.prevention and treatment_info.prevention != 'Included in AI response above' %}
+                            <div class="treatment-item">
+                                <div class="treatment-label">
+                                    <i class="fas fa-shield-alt me-2" style="color: var(--result-info);"></i>Prevention Measures
+                                </div>
+                                <div class="treatment-text">{{ treatment_info.prevention }}</div>
+                            </div>
+                            {% endif %}
+
                             <!-- Severity Level -->
-                            {% if treatment_info.severity and treatment_info.severity != 'Unknown' %}
+                            {% if treatment_info.severity and treatment_info.severity != 'AI assessed' %}
                             <div class="treatment-item">
                                 <div class="treatment-label">
                                     <i class="fas fa-exclamation-triangle me-2" style="color: var(--result-warning);"></i>Severity Level
@@ -772,7 +804,7 @@
                         </div>
 
                         <!-- AI Disclaimer -->
-                        {% if treatment_info.source == 'AI-generated' %}
+                        {% if treatment_info.source == 'Gemini AI' %}
                         <div class="mt-3 p-3" style="background: rgba(139, 92, 246, 0.05); border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.1);">
                             <small class="text-muted">
                                 <i class="fas fa-info-circle me-1" style="color: #8b5cf6;"></i>
@@ -815,6 +847,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }, index * 150);
     });
+    
+    // Highlight immediate action section
+    const immediateAction = document.querySelector('.immediate-action');
+    if (immediateAction) {
+        setTimeout(() => {
+            immediateAction.style.boxShadow = '0 0 0 4px rgba(234, 88, 12, 0.3)';
+            setTimeout(() => {
+                immediateAction.style.boxShadow = 'none';
+            }, 1000);
+        }, 500);
+    }
 });
 </script>
 {% endblock %}
