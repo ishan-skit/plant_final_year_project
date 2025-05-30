@@ -1006,7 +1006,7 @@
                 {% if predictions %}
                     {% for p in predictions|reverse %}
                     <div class="timeline-item {% if loop.index % 2 == 0 %}right{% else %}left{% endif %}">
-                        <div class="timeline-content" onclick="showAdvancedDetails('{{ p[1] }}', {{ p[2] }}, '{{ p[3] }}', '{{ url_for('static', filename='uploads/' ~ p[0]) }}')">
+                        <div class="timeline-content" onclick="showAdvancedDetails('{{ p[1] }}', {{ p[2] }}, '{{ p[3] }}', '{{ url_for('uploaded_file', filename=p[0]) }}')">
                             <div class="timeline-date">{{ p[3] }}</div>
                             <h3 class="timeline-title">{{ p[1] }}</h3>
                             <div class="severity-meter">
@@ -1054,9 +1054,10 @@
             <div class="predictions-grid">
                 {% for p in predictions %}
                 <div class="prediction-card-advanced">
-                    <img src="{{ url_for('static', filename='uploads/' ~ p[0]) }}" 
-                         alt="Plant Analysis" 
-                         class="leaf-image-advanced">
+                    <img src="{{ url_for('uploaded_file', filename=p[0]) }}"
+     alt="Plant Analysis"
+     class="leaf-image-advanced"
+     onerror="this.style.display='none';">
                     <h4 class="disease-title-advanced">{{ p[1] }}</h4>
                     <div class="text-center mb-3">
                         <span class="confidence-badge-advanced 
@@ -1074,7 +1075,8 @@
                     </div>
                     <div class="action-buttons">
                         <button class="btn-advanced btn-primary-advanced" 
-                                onclick="showAdvancedDetails('{{ p[1] }}', {{ p[2] }}, '{{ p[3] }}', '{{ url_for('static', filename='uploads/' ~ p[0]) }}')">
+                                onclick="showAdvancedDetails('{{ p[1] }}', {{ p[2] }}, '{{ p[3] }}', '{{ url_for('uploaded_file', filename=p[0]) }}')"
+>
                             <i class="fas fa-info-circle me-2"></i>Details
                         </button>
                     </div>

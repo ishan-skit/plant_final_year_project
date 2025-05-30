@@ -754,6 +754,14 @@ def predict():
             
     return render_template('predict.html')
                      
+from flask import send_from_directory  
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    """Serve uploaded files dynamically"""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
 
 @app.route('/camera')
 @login_required
