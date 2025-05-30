@@ -705,60 +705,71 @@ def dashboard():
 def predict():
     if request.method == 'POST':
         file = request.files.get('image')
-        if file and allowed_file(file.filename):
-            try:
-                filename = datetime.now().strftime('%Y%m%d%H%M%S_') + secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
 
-                predicted_class, confidence = predict_disease(filepath)
-                treatment_info = get_treatment_info(predicted_class, confidence)
+        if not file:
+            logger.warning("No file was received in the request.")
+            flash("No file was received. Please try again.")
+            return render_template('predict.html')
 
-                # Save to database
-                with sqlite3.connect('plant_app.db') as conn:
-                    c = conn.cursor()
-                    c.execute('''
-                        INSERT INTO predictions (user_id, filename, predicted_class, confidence)
-                        VALUES (?, ?, ?, ?)''',
-                        (session['user_id'], filename, predicted_class, confidence))
-                    conn.commit()
+        logger.info(f"Received file: {file.filename}")
 
-                # ALSO save to session for immediate dashboard updates
-                if 'predictions' not in session:
-                    session['predictions'] = []
-                
-                # Create prediction entry with timestamp
-                prediction_entry = [
-                    filename,  # image filename
-                    predicted_class,  # disease name
-                    confidence,  # confidence score (0-1)
-                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # timestamp
-                ]
-                
-                # Add to beginning of list (most recent first)
-                session['predictions'].insert(0, prediction_entry)
-                
-                # Keep only last 10 predictions in session to avoid bloat
-                session['predictions'] = session['predictions'][:10]
-                
-                # Make sure session is saved
-                session.modified = True
-                
-                app.logger.info(f"Saved prediction: {predicted_class} with {confidence:.3f} confidence")
+        if file.filename == '':
+            logger.warning("Filename is empty.")
+            flash("File name is empty. Please try again.")
+            return render_template('predict.html')
 
-                return render_template('result.html', 
-                                    filename=filename, 
-                                    predicted_class=predicted_class, 
-                                    confidence=round(confidence * 100, 2),
-                                    treatment_info=treatment_info)
-            except Exception as e:
-                logger.error(f"Prediction error: {e}")
-                flash("Error processing image. Please try again.")
-        else:
-            flash("Invalid file format or no file selected.")
-            
+        if not allowed_file(file.filename):
+            logger.warning(f"Invalid file format: {file.filename}")
+            flash("Invalid file format. Please upload a .jpg, .jpeg, .png, or .gif.")
+            return render_template('predict.html')
+
+        try:
+            filename = datetime.now().strftime('%Y%m%d%H%M%S_') + secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            predicted_class, confidence = predict_disease(filepath)
+            treatment_info = get_treatment_info(predicted_class, confidence)
+
+            # Save to database
+            with sqlite3.connect('plant_app.db') as conn:
+                c = conn.cursor()
+                c.execute('''
+                    INSERT INTO predictions (user_id, filename, predicted_class, confidence)
+                    VALUES (?, ?, ?, ?)''',
+                    (session['user_id'], filename, predicted_class, confidence))
+                conn.commit()
+
+            # Also save to session for immediate dashboard updates
+            if 'predictions' not in session:
+                session['predictions'] = []
+
+            prediction_entry = [
+                filename,
+                predicted_class,
+                confidence,
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ]
+
+            session['predictions'].insert(0, prediction_entry)
+            session['predictions'] = session['predictions'][:10]
+            session.modified = True
+
+            app.logger.info(f"Saved prediction: {predicted_class} with {confidence:.3f} confidence")
+
+            return render_template('result.html', 
+                                   filename=filename, 
+                                   predicted_class=predicted_class, 
+                                   confidence=round(confidence * 100, 2),
+                                   treatment_info=treatment_info)
+
+        except Exception as e:
+            logger.error(f"Prediction error: {e}")
+            flash("Error processing image. Please try again.")
+            return render_template('predict.html')
+
     return render_template('predict.html')
-                     
+                   
 
 @app.route('/camera')
 @login_required
