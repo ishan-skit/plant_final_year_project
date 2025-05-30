@@ -965,14 +965,15 @@ def internal_error(error):
     return render_template('errors/500.html'), 500
 
 # Initialize model on startup
-@app.before_first_request
 def initialize_app():
-    """Initialize the application before first request"""
+    """Initialize the application"""
     logger.info("Initializing application...")
     init_db()
     diagnose_model_issue()
     load_model_safely()
     logger.info("Application initialization complete")
+
+initialize_app()
 
 # Application startup
 if __name__ == '__main__':
