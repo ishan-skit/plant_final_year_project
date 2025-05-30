@@ -63,9 +63,6 @@ app.secret_key = os.getenv('SECRET_KEY', 'render-plant-detection-2024')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit for Render
 
 
-init_db()
-load_model_safely()
-
 
 # Database configuration for Render
 database_url = os.getenv('DATABASE_URL', 'sqlite:///plant_app.db')
@@ -874,6 +871,11 @@ def not_found(error):
 def internal_error(error):
     logger.error(f"Internal error: {error}")
     return render_template('errors/500.html'), 500
+
+# Run initialization tasks for all environments (including Render)
+init_db()
+load_model_safely()
+
 
 # Application startup
 if __name__ == '__main__':
