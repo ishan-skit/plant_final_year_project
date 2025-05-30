@@ -3,7 +3,7 @@ services:
     name: plant-disease-detection
     runtime: python
     buildCommand: ./build.sh
-    startCommand: gunicorn --timeout 120 app:app
+    startCommand: gunicorn --timeout 300 --workers 1 --worker-class sync --max-requests 1000 --preload app:app
     autoDeploy: true
     envVars:
       - key: SECRET_KEY
