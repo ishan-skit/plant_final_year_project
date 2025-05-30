@@ -388,29 +388,15 @@ def preprocess_image(img_path):
         logger.error(f"Image preprocessing error: {e}")
         return None
 
+
+
 def predict_disease(image_path):
-    """Predict disease using the globally loaded model"""
-    try:
-        img = Image.open(image_path).convert('RGB')
-        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
-        img_array = np.array(img, dtype=np.float32)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = img_array / 255.0
+    logger.info(f"Fake prediction for: {image_path}")
+    # Simulate delay (optional)
+    # import time; time.sleep(1)
+    # Return a dummy class name and confidence score
+    return "FakeLeafDisease", 0.95
 
-        logger.info("Running model.predict...")
-        predictions = model.predict(img_array)
-        logger.info("Prediction complete")
-        predicted_class_index = np.argmax(predictions[0])
-        confidence = float(predictions[0][predicted_class_index])
-        predicted_class = LABELS_REVERSE[str(predicted_class_index)]
-
-        return predicted_class, confidence
-
-    except Exception as e:
-        import traceback
-        logger.error("Error during prediction:")
-        logger.error(traceback.format_exc())
-        raise
 
 def get_ai_treatment(disease_name, confidence_score=0.0):
     """Get ultra-light AI treatment response for low memory environments"""
