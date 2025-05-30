@@ -62,6 +62,11 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'render-plant-detection-2024')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit for Render
 
+
+init_db()
+load_model_safely()
+
+
 # Database configuration for Render
 database_url = os.getenv('DATABASE_URL', 'sqlite:///plant_app.db')
 if database_url.startswith('postgres://'):
@@ -874,10 +879,6 @@ def internal_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
-
-    # CRUCIAL: Load model and labels before starting the app
-    init_db()
-    load_model_safely()  # <-- THIS WAS MISSING
 
     logger.info(f"Starting Flask app on port {port}")
     logger.info(f"Model loaded: {model is not None}")
