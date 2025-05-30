@@ -30,6 +30,9 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import send_from_directory
 
+# Load labels first
+with open('labels_reverse.json', 'r') as f:
+    LABELS_REVERSE = json.load(f)
 
 # CRITICAL: Explicit layer registration to fix InputLayer deserialization
 import tensorflow.keras.layers
@@ -61,6 +64,18 @@ if os.getenv("GEMINI_API_KEY"):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     logger.info("Gemini AI configured successfully")
 
+# Constants matching train_model.py EXACTLY
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
+MODEL_PATH = 'model/model.h5'
+LABELS_PATH = 'model/labels.json'
+TREATMENTS_PATH = 'plant_treatments.csv'
+IMG_SIZE = (128, 128)  # EXACT match with train_model.py
+INPUT_SHAPE = (128, 128, 3)  # EXACT match with train_model.py
+
+# Initialize global model and label_dict
+model = None
+label_dict = {}
+
 # Flask App Configuration
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'render-plant-detection-2024')
@@ -91,27 +106,16 @@ if os.getenv('GOOGLE_CLIENT_ID') and os.getenv('GOOGLE_CLIENT_SECRET'):
         client_kwargs={'scope': 'openid email profile'}
     )
 
-# Constants matching train_model.py EXACTLY
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
-MODEL_PATH = 'model/model.h5'
-import os
-print("[DEBUG] Model exists:", os.path.exists(MODEL_PATH))
-
-LABELS_PATH = 'model/labels.json'
-TREATMENTS_PATH = 'plant_treatments.csv'
-IMG_SIZE = (128, 128)  # EXACT match with train_model.py
-INPUT_SHAPE = (128, 128, 3)  # EXACT match with train_model.py
-
 # Configure session
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 app.config['SESSION_COOKIE_SECURE'] = True # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# Global variables
-model = None
-label_dict = {}
+# Load treatments data
 treatments_df = pd.DataFrame()
+if os.path.exists(TREATMENTS_PATH):
+    treatments_df = pd.read_csv(TREATMENTS_PATH)
 
 def load_model_safely():
     """Enhanced model loading with multiple fallback strategies for InputLayer issues"""
@@ -381,28 +385,27 @@ def preprocess_image(img_path):
         logger.error(f"Image preprocessing error: {e}")
         return None
 
-def predict_disease(img_path):
-    """Predict disease with error handling for Render deployment"""
-    if model is None:
-        return "Model not loaded", 0.0
-    
+def predict_disease(image_path):
+    """Predict disease using the globally loaded model"""
     try:
-        img_array = preprocess_image(img_path)
-        if img_array is None:
-            return "Image processing failed", 0.0
-        
-        # Predict with error handling
-        preds = model.predict(img_array, verbose=0)
-        class_index = np.argmax(preds)
-        confidence = float(np.max(preds))
-        class_name = label_dict.get(class_index, "Unknown")
-        
-        logger.info(f"Prediction: {class_name} (confidence: {confidence:.3f})")
-        return class_name, confidence
-        
+        img = Image.open(image_path).convert('RGB')
+        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = img_array / 255.0
+
+        predictions = model.predict(img_array)
+        predicted_class_index = np.argmax(predictions[0])
+        confidence = float(predictions[0][predicted_class_index])
+        predicted_class = LABELS_REVERSE[str(predicted_class_index)]
+
+        return predicted_class, confidence
+
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
-        return f"Prediction failed: {str(e)}", 0.0
+        import traceback
+        logger.error("Error during prediction:")
+        logger.error(traceback.format_exc())
+        raise
 
 def get_ai_treatment(disease_name, confidence_score=0.0):
     """Get ultra-light AI treatment response for low memory environments"""
@@ -433,7 +436,6 @@ def get_ai_treatment(disease_name, confidence_score=0.0):
     except Exception as e:
         logger.error(f"AI treatment error: {e}")
         return get_fallback_treatment(disease_name)
-
 
 def get_fallback_treatment(disease_name):
     """Fallback treatment when AI is unavailable"""
@@ -697,8 +699,6 @@ def dashboard():
                             healthy_count=0,
                             disease_count=0,
                             avg_confidence=0)
-    
-
 
 @app.route('/predict', methods=['GET', 'POST'])
 @login_required
@@ -838,10 +838,6 @@ def predict_camera():
         logger.error(f"Camera prediction error: {e}")
         return jsonify({'error': str(e)}), 500
     
-
-
-        
-
 @app.route('/about')
 @login_required
 def about():
@@ -998,7 +994,8 @@ def initialize_app():
     logger.info("Initializing application...")
     init_db()
     diagnose_model_issue()
-    load_model_safely()
+    if not load_model_safely():
+        logger.error("Failed to load model - application may not function properly")
     logger.info("Application initialization complete")
 
 initialize_app()
