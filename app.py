@@ -405,43 +405,35 @@ def predict_disease(img_path):
         return f"Prediction failed: {str(e)}", 0.0
 
 def get_ai_treatment(disease_name, confidence_score=0.0):
-    """Get AI treatment with fallback for Render deployment"""
+    """Get ultra-light AI treatment response for low memory environments"""
     try:
         if not os.getenv("GEMINI_API_KEY"):
             return get_fallback_treatment(disease_name)
-        
+
         model_ai = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"""
-        As a plant pathology expert, provide treatment for: "{disease_name}"
-        
-        Include:
-        1. Disease overview
-        2. Treatment options (chemical & organic)
-        3. Prevention measures
-        4. Severity assessment
-        5. Monitoring advice
-        
-        Keep response practical and concise for farmers.
-        """
-        
+
+        # Ultra-short, low-resource prompt
+        prompt = f"Short treatment for plant disease: {disease_name}"
+
         response = model_ai.generate_content(prompt)
-        
+
         if response and response.text:
             return {
                 'disease': disease_name,
                 'treatment': response.text.strip(),
-                'prevention': 'Included in AI response above',
-                'organic_treatment': 'Included in AI response above',
-                'chemical_treatment': 'Included in AI response above',
-                'severity': 'AI assessed',
+                'prevention': 'See treatment',
+                'organic_treatment': 'See treatment',
+                'chemical_treatment': 'See treatment',
+                'severity': 'Not specified',
                 'source': 'Gemini AI'
             }
         else:
             return get_fallback_treatment(disease_name)
-            
+
     except Exception as e:
         logger.error(f"AI treatment error: {e}")
         return get_fallback_treatment(disease_name)
+
 
 def get_fallback_treatment(disease_name):
     """Fallback treatment when AI is unavailable"""
