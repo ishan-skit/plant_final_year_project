@@ -799,17 +799,6 @@ def save_detection():
         logger.error(f"Error saving detection: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    return render_template('error.html', error="Page not found"), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    logger.error(f"Internal error: {error}")
-    return render_template('error.html', error="Internal server error"), 500
-
 # Add these routes to your app.py file
 
 @app.route('/clear_predictions', methods=['POST'])
@@ -869,6 +858,17 @@ def clear_recent():
     except Exception as e:
         logger.error(f"Clear recent predictions error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+    # Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal error: {error}")
+    return render_template('errors/500.html'), 500
 
 # Application startup
 if __name__ == '__main__':
