@@ -874,9 +874,13 @@ def internal_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
-    
+
+    # CRUCIAL: Load model and labels before starting the app
+    init_db()
+    load_model_safely()  # <-- THIS WAS MISSING
+
     logger.info(f"Starting Flask app on port {port}")
     logger.info(f"Model loaded: {model is not None}")
     logger.info(f"Labels loaded: {len(label_dict)} classes")
-    
+
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
