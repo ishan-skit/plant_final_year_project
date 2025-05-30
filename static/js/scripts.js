@@ -15,8 +15,9 @@ const uploadArea = document.getElementById('uploadArea');
 const imageInput = document.getElementById('imageInput');
 const imagePreview = document.getElementById('imagePreview');
 const previewImg = document.getElementById('previewImg');
-const loadingSpinner = document.querySelector('.loading-spinner');
-const predictionForm = document.getElementById('predictionForm');
+const loadingSpinner = document.getElementById('analysisProgress');
+const predictionForm = document.getElementById('uploadForm');
+
 
 // Handle file selection
 function handleFileSelect() {
