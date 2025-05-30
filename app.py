@@ -704,7 +704,7 @@ def dashboard():
 @login_required
 def predict():
     if request.method == 'POST':
-        file = request.files.get('file')
+        file = request.files.get('image')
         if file and allowed_file(file.filename):
             try:
                 filename = datetime.now().strftime('%Y%m%d%H%M%S_') + secure_filename(file.filename)
