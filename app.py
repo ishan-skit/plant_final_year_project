@@ -125,76 +125,79 @@ def extreme_memory_cleanup():
     gc.collect()
 
 # Replace the load_model_and_config function with this version:
+
+
 def load_model_and_config():
     """Load the pre-trained model and configuration"""
     global MODEL, CLASS_NAMES, DEPLOY_CONFIG
-    
+
     try:
         logger.info("[LOAD] Loading model and configuration...")
-        
+
         # Check if model file exists
         if not os.path.exists(MODEL_PATH):
             logger.error(f"[ERROR] Model file not found: {MODEL_PATH}")
             return False
-        
+
         # Clean memory before loading
         extreme_memory_cleanup()
-        
-        # Load model with memory optimization
-        logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
-        
-        # Custom object scope for compatibility
-        from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
-        MODEL = legacy_load_model(MODEL_PATH, compile=False)
 
-        
-        # Compile with basic settings
+        # Load model with fallback for Keras 3 compatibility
+        logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
+        try:
+            from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
+            MODEL = legacy_load_model(MODEL_PATH, compile=False)
+        except ImportError:
+            MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+
+        # Compile (optional for inference, but helps with basic verification)
         MODEL.compile(
             optimizer='adam',
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy']
         )
-        
-        logger.info(f"[SUCCESS] Model loaded successfully")
-        
+
+        logger.info("[SUCCESS] Model loaded successfully")
+
         # Load class names
         logger.info(f"[LOAD] Loading labels from: {LABELS_PATH}")
         with open(LABELS_PATH, 'r') as f:
             CLASS_NAMES = json.load(f)
-        
+
         # Load deploy config
         logger.info(f"[LOAD] Loading config from: {CONFIG_PATH}")
         with open(CONFIG_PATH, 'r') as f:
             DEPLOY_CONFIG = json.load(f)
-        
+
         logger.info(f"[SUCCESS] Loaded {len(CLASS_NAMES)} class labels")
-        
+
         # Test model with dummy input
         logger.info("[TEST] Testing model with dummy input...")
         dummy_input = np.random.random((1, *INPUT_SHAPE)).astype(np.float32)
         test_prediction = MODEL.predict(dummy_input, verbose=0)
         logger.info(f"[SUCCESS] Model test passed. Output shape: {test_prediction.shape}")
-        
+
         # Verify dimensions match
         if test_prediction.shape[1] != len(CLASS_NAMES):
             logger.warning(f"[WARNING] Model output ({test_prediction.shape[1]}) doesn't match label count ({len(CLASS_NAMES)})")
-        
-        logger.info(f"[SUCCESS] Model and config loaded successfully!")
+
+        logger.info("[SUCCESS] Model and config loaded successfully!")
         logger.info(f"[INFO] Model input shape: {MODEL.input_shape}")
         logger.info(f"[INFO] Model output shape: {MODEL.output_shape}")
         logger.info(f"[INFO] Number of classes: {len(CLASS_NAMES)}")
         logger.info(f"[INFO] Image size: {IMG_SIZE}")
-        
-        # Clean up test variables
+
+        # Clean up
         del dummy_input, test_prediction
         extreme_memory_cleanup()
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"[ERROR] Failed to load model and config: {e}")
         logger.error(traceback.format_exc())
         return False
+
 
 def preprocess_image(image_path):
     """Preprocess image for prediction"""
