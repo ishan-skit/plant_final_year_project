@@ -37,6 +37,8 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import send_from_directory
 import secrets
+from keras.saving.legacy.hdf5_format import load_model
+
 
 # Configure logging for Render deployment
 logging.basicConfig(
@@ -134,23 +136,22 @@ def load_model_and_config():
     try:
         logger.info("[LOAD] Loading model and configuration...")
 
-        # Check if model file exists
         if not os.path.exists(MODEL_PATH):
             logger.error(f"[ERROR] Model file not found: {MODEL_PATH}")
             return False
 
-        # Clean memory before loading
         extreme_memory_cleanup()
 
-        # Load model with fallback for Keras 3 compatibility
+        # Load using legacy loader for Keras 3 compatibility
         logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
         try:
-            from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
+            # This is the key fix
+            from keras.saving.legacy.hdf5_format import load_model as legacy_load_model
             MODEL = legacy_load_model(MODEL_PATH, compile=False)
         except ImportError:
+            # Fallback for older versions
             MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
-        # Compile (optional for inference, but helps with basic verification)
         MODEL.compile(
             optimizer='adam',
             loss='sparse_categorical_crossentropy',
@@ -159,7 +160,7 @@ def load_model_and_config():
 
         logger.info("[SUCCESS] Model loaded successfully")
 
-        # Load class names
+        # Load labels
         logger.info(f"[LOAD] Loading labels from: {LABELS_PATH}")
         with open(LABELS_PATH, 'r') as f:
             CLASS_NAMES = json.load(f)
@@ -171,23 +172,15 @@ def load_model_and_config():
 
         logger.info(f"[SUCCESS] Loaded {len(CLASS_NAMES)} class labels")
 
-        # Test model with dummy input
+        # Test model
         logger.info("[TEST] Testing model with dummy input...")
         dummy_input = np.random.random((1, *INPUT_SHAPE)).astype(np.float32)
         test_prediction = MODEL.predict(dummy_input, verbose=0)
-        logger.info(f"[SUCCESS] Model test passed. Output shape: {test_prediction.shape}")
+        logger.info(f"[SUCCESS] Test passed. Output shape: {test_prediction.shape}")
 
-        # Verify dimensions match
         if test_prediction.shape[1] != len(CLASS_NAMES):
-            logger.warning(f"[WARNING] Model output ({test_prediction.shape[1]}) doesn't match label count ({len(CLASS_NAMES)})")
+            logger.warning(f"[WARNING] Mismatch between model output and class labels")
 
-        logger.info("[SUCCESS] Model and config loaded successfully!")
-        logger.info(f"[INFO] Model input shape: {MODEL.input_shape}")
-        logger.info(f"[INFO] Model output shape: {MODEL.output_shape}")
-        logger.info(f"[INFO] Number of classes: {len(CLASS_NAMES)}")
-        logger.info(f"[INFO] Image size: {IMG_SIZE}")
-
-        # Clean up
         del dummy_input, test_prediction
         extreme_memory_cleanup()
 
