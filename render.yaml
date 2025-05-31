@@ -7,16 +7,16 @@ services:
     autoDeploy: true
     envVars:
       - key: SECRET_KEY
-        value: your_generated_secret_key_here  # Generate with: openssl rand -hex 32
+        value: your_generated_secret_key_here
       - key: GEMINI_API_KEY
         value: your_api_key_here
       - key: TF_CPP_MIN_LOG_LEVEL
-        value: "2"  # Reduce TensorFlow logging
+        value: "2"
       - key: PORT
-        value: "10000"  
+        value: "10000"
     region: oregon
-    plan: free  # Explicit free tier declaration
+    plan: free
     disk:
       name: uploads_volume
       mountPath: /opt/render/project/src/static/uploads
-      sizeGB: 1  # Minimal storage for uploads
+      sizeGB: 1

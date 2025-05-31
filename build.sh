@@ -26,10 +26,7 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-# Cleanup to reduce slug size (ignore read-only errors)
-echo "--- Cleaning up build files ---"
-pip cache purge || true
-find /usr/local/lib/python*/ -type d -name "tests" -exec rm -rf {} + || true
-find /usr/local/lib/python*/ -type d -name "__pycache__" -exec rm -rf {} + || true
+# Create uploads directory if it doesn't exist
+mkdir -p static/uploads
 
 echo "✓ Build completed successfully"

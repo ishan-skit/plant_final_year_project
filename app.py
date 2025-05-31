@@ -124,6 +124,7 @@ def extreme_memory_cleanup():
     tf.keras.backend.clear_session()
     gc.collect()
 
+# Replace the load_model_and_config function with this version:
 def load_model_and_config():
     """Load the pre-trained model and configuration"""
     global MODEL, CLASS_NAMES, DEPLOY_CONFIG
@@ -141,7 +142,18 @@ def load_model_and_config():
         
         # Load model with memory optimization
         logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
-        MODEL = tf.keras.models.load_model(MODEL_PATH)
+        
+        # Custom object scope for compatibility
+        with tf.keras.utils.custom_object_scope({'InputLayer': tf.keras.layers.InputLayer}):
+            MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        
+        # Compile with basic settings
+        MODEL.compile(
+            optimizer='adam',
+            loss='sparse_categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
         logger.info(f"[SUCCESS] Model loaded successfully")
         
         # Load class names
