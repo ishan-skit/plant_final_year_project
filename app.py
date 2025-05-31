@@ -69,7 +69,7 @@ if os.getenv("GEMINI_API_KEY"):
 
 # Constants - Updated to match your trained model
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
-MODEL_PATH = 'model/plant_disease_model.h5'  # Changed to match trained model
+MODEL_PATH = 'model/plant_disease_model.keras'  # Changed to match trained model
 LABELS_PATH = 'model/class_names.json'      # Changed to match trained model
 CONFIG_PATH = 'model/deploy_config.json'    # Added for model config
 TREATMENTS_PATH = 'plant_treatments.csv'
@@ -145,13 +145,9 @@ def load_model_and_config():
 
         # Load using legacy loader for Keras 3 compatibility
         logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
-        try:
-            # This is the key fix
-            from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
-            MODEL = legacy_load_model(MODEL_PATH, compile=False)
-        except ImportError:
-            # Fallback for older versions
-            MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        
+        MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+
 
         MODEL.compile(
             optimizer='adam',
