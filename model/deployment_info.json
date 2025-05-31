@@ -1,13 +1,16 @@
 {
   "num_classes": 9,
   "input_shape": [
-    128,
-    128,
+    64,
+    64,
     3
   ],
+  "image_size": [
+    64,
+    64
+  ],
   "tensorflow_version": "2.19.0",
-  "deployment_platform": "render",
-  "optimization_level": "high",
+  "optimized_for": "render_free_tier",
   "class_names": [
     "Pepper__bell___Bacterial_spot",
     "Pepper__bell___healthy",
