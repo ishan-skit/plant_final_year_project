@@ -144,8 +144,9 @@ def load_model_and_config():
         logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
         
         # Custom object scope for compatibility
-        with tf.keras.utils.custom_object_scope({'InputLayer': tf.keras.layers.InputLayer}):
-            MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
+        MODEL = legacy_load_model(MODEL_PATH, compile=False)
+
         
         # Compile with basic settings
         MODEL.compile(
