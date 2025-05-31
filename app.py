@@ -37,9 +37,6 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import send_from_directory
 import secrets
-from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
-
-
 
 # Configure logging for Render deployment
 logging.basicConfig(
@@ -107,7 +104,7 @@ if os.getenv('GOOGLE_CLIENT_ID') and os.getenv('GOOGLE_CLIENT_SECRET'):
         name='google',
         client_id=os.getenv('GOOGLE_CLIENT_ID'),
         client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
-        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        server_metadata_url='https://accounts.google.com/.well-known/openid_configuration',
         client_kwargs={'scope': 'openid email profile'}
     )
 
@@ -127,11 +124,8 @@ def extreme_memory_cleanup():
     tf.keras.backend.clear_session()
     gc.collect()
 
-# Replace the load_model_and_config function with this version:
-
-
 def load_model_and_config():
-    """Load the pre-trained model and configuration"""
+    """Load the pre-trained model and configuration with improved compatibility"""
     global MODEL, CLASS_NAMES, DEPLOY_CONFIG
 
     try:
@@ -143,29 +137,51 @@ def load_model_and_config():
 
         extreme_memory_cleanup()
 
-        # Load using legacy loader for Keras 3 compatibility
+        # Load model with multiple fallback methods
         logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
         
-        MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        try:
+            # Try standard load_model first
+            MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            logger.info("[SUCCESS] Model loaded with standard method")
+        except Exception as e1:
+            logger.warning(f"[WARNING] Standard load failed: {e1}")
+            try:
+                # Try with custom_objects parameter
+                MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False, custom_objects=None)
+                logger.info("[SUCCESS] Model loaded with custom_objects=None")
+            except Exception as e2:
+                logger.warning(f"[WARNING] Custom objects load failed: {e2}")
+                try:
+                    # Try loading with safe_mode
+                    MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False, safe_mode=False)
+                    logger.info("[SUCCESS] Model loaded with safe_mode=False")
+                except Exception as e3:
+                    logger.error(f"[ERROR] All model loading methods failed: {e3}")
+                    return False
 
-
+        # Compile the model
         MODEL.compile(
             optimizer='adam',
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy']
         )
 
-        logger.info("[SUCCESS] Model loaded successfully")
+        logger.info("[SUCCESS] Model compiled successfully")
 
         # Load labels
         logger.info(f"[LOAD] Loading labels from: {LABELS_PATH}")
         with open(LABELS_PATH, 'r') as f:
             CLASS_NAMES = json.load(f)
 
-        # Load deploy config
-        logger.info(f"[LOAD] Loading config from: {CONFIG_PATH}")
-        with open(CONFIG_PATH, 'r') as f:
-            DEPLOY_CONFIG = json.load(f)
+        # Load deploy config if exists
+        if os.path.exists(CONFIG_PATH):
+            logger.info(f"[LOAD] Loading config from: {CONFIG_PATH}")
+            with open(CONFIG_PATH, 'r') as f:
+                DEPLOY_CONFIG = json.load(f)
+        else:
+            logger.info("[INFO] No deploy config found, using defaults")
+            DEPLOY_CONFIG = {"version": "1.0", "created": str(datetime.now())}
 
         logger.info(f"[SUCCESS] Loaded {len(CLASS_NAMES)} class labels")
 
@@ -176,7 +192,7 @@ def load_model_and_config():
         logger.info(f"[SUCCESS] Test passed. Output shape: {test_prediction.shape}")
 
         if test_prediction.shape[1] != len(CLASS_NAMES):
-            logger.warning(f"[WARNING] Mismatch between model output and class labels")
+            logger.warning(f"[WARNING] Mismatch between model output ({test_prediction.shape[1]}) and class labels ({len(CLASS_NAMES)})")
 
         del dummy_input, test_prediction
         extreme_memory_cleanup()
@@ -187,7 +203,6 @@ def load_model_and_config():
         logger.error(f"[ERROR] Failed to load model and config: {e}")
         logger.error(traceback.format_exc())
         return False
-
 
 def preprocess_image(image_path):
     """Preprocess image for prediction"""
@@ -258,11 +273,6 @@ def predict_disease(image_path):
         logger.error("[ERROR] Prediction failed!")
         logger.error(traceback.format_exc())
         return "Prediction Error", 0.0
-
-# [Keep all your existing database functions, routes, and utilities]
-# init_db(), getImmediateAction(), allowed_file(), login_required(), 
-# get_ai_treatment(), get_fallback_treatment(), get_treatment_info()
-# All your existing routes (/, /register, /login, /dashboard, etc.)
 
 # Database initialization
 def init_db():
@@ -416,7 +426,6 @@ def get_treatment_info(disease_name, confidence_score=0.0):
     # Use AI for unknown diseases or low confidence
     return get_ai_treatment(disease_name, confidence_score)
 
-
 # Health check endpoint - Updated
 @app.route('/health')
 def health_check():
@@ -433,9 +442,6 @@ def health_check():
         "input_shape": INPUT_SHAPE,
         "optimization": "render_free_tier_extreme"
     }), 200
-
-# [Keep all your other existing routes and functions exactly as they were]
-
 
 # Authentication routes
 @app.route('/')
