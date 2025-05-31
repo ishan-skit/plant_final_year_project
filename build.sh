@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
 set -o errexit
 
-echo "=== Starting Render Build ==="
+echo " Starting Render build process..."
 
-# System setup
-python -m pip install --upgrade pip setuptools wheel --no-cache-dir
+# Upgrade pip and install build tools
+python -m pip install --upgrade pip setuptools wheel
 
-# Install ONLY production dependencies (no dev packages)
-pip install -r requirements.txt --no-cache-dir
+# Install Python dependencies
+pip install -r requirements.txt
 
-# Verify critical model files
-required_files=(
-  "model/plant_disease_model.h5"
-  "model/class_names.json"
-  "model/deploy_config.json"
-)
+# Clear pip cache to reduce slug size
+pip cache purge
 
-echo "--- Verifying Model Files ---"
-for file in "${required_files[@]}"; do
-  if [ ! -f "$file" ]; then
-    echo "ERROR: Missing required file: $file"
-    echo "Contents of model/:"
-    ls -l model/
-    exit 1
-  fi
-done
+# Check model artifacts
+echo " Verifying model files..."
+if [ ! -f "model/model.h5" ]; then
+  echo " ERROR: model/model.h5 not found!"
+  echo " Contents of model directory:"
+  ls -l model/
+  exit 1
+fi
 
-# Create uploads directory if it doesn't exist
-mkdir -p static/uploads
+if [ ! -f "model/labels.json" ]; then
+  echo " ERROR: model/labels.json not found!"
+  exit 1
+fi
 
-echo "✓ Build completed successfully"
+echo " Model files found:"
+ls -l model/
+
+echo " Build completed successfully for Render!"

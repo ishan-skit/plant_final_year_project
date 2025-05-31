@@ -41,19 +41,7 @@ config.py
 static/uploads/*
 !static/uploads/.gitkeep
 
-# === Training scripts and datasets ===
-train_locally.py       # Exclude local training script
-train_model.py         # Exclude if present
-PlantVillage/          # Exclude dataset
-dataset/
-data/
-*.jpg
-*.jpeg
-*.png
-*.bmp
-*.tiff
-
-# === Training outputs (exclude all EXCEPT final models) ===
+# === Training outputs, checkpoints, experiments ===
 checkpoints/
 logs/
 runs/
@@ -66,11 +54,26 @@ wandb/
 *.ipynb_checkpoints/
 *-checkpoint.ipynb
 
-# === Model files (WHITELIST - Keep these) ===
-!model/plant_disease_model.h5    # Required for deployment
-!model/class_names.json          # Required
-!model/deploy_config.json        # Required
+# === Dataset exclusion ===
+PlantVillage/*/
+dataset/
+data/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tiff
 
-# === Render deployment files ===
-!render.yaml
-!build.sh
+# === Include ONLY final trained model ===
+!model/
+!model/model.h5
+!model/best_model.h5
+!model/labels.json
+!model/labels_reverse.json
+!model/deployment_info.json
+!model/training_history.json
+
+# === Render deployment files - KEEP these tracked ===
+# DO NOT ignore these! Remove from previous ignore rules if needed:
+# render.yaml
+# build.sh
