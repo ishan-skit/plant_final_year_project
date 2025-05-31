@@ -7,6 +7,10 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Force CPU only
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['TF_NUM_INTEROP_THREADS'] = '1'
+os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
+os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 
 import random
 import json
@@ -45,13 +49,13 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Configure TensorFlow for stability
+# Configure TensorFlow for stability and extreme memory optimization
 try:
     tf.config.set_visible_devices([], 'GPU')
     tf.config.threading.set_inter_op_parallelism_threads(1)
     tf.config.threading.set_intra_op_parallelism_threads(1)
     tf.config.experimental.enable_tensor_float_32_execution(False)
-    logger.info("TensorFlow configured for Render CPU deployment")
+    logger.info("TensorFlow configured for Render CPU deployment with extreme optimization")
 except Exception as e:
     logger.warning(f"TensorFlow configuration warning: {e}")
 
@@ -60,13 +64,13 @@ if os.getenv("GEMINI_API_KEY"):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     logger.info("Gemini AI configured successfully")
 
-# Constants matching train_model.py EXACTLY
+# Constants matching train_model.py EXACTLY - UPDATED FOR 32x32
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
 MODEL_PATH = 'model/model.h5'  # EXACT match with train_model.py output
 LABELS_PATH = 'model/labels.json'  # EXACT match with train_model.py output
 TREATMENTS_PATH = 'plant_treatments.csv'
-IMG_SIZE = (64, 64)  # EXACT match with train_model.py
-INPUT_SHAPE = (64, 64, 3)  # EXACT match with train_model.py
+IMG_SIZE = (32, 32)  # UPDATED: Changed from (64, 64) to match train_model.py
+INPUT_SHAPE = (32, 32, 3)  # UPDATED: Changed from (64, 64, 3) to match train_model.py
 
 # Initialize global variables
 MODEL = None
@@ -113,12 +117,17 @@ treatments_df = pd.DataFrame()
 if os.path.exists(TREATMENTS_PATH):
     treatments_df = pd.read_csv(TREATMENTS_PATH)
 
+def extreme_memory_cleanup():
+    """Extreme memory cleanup for micro model"""
+    tf.keras.backend.clear_session()
+    gc.collect()
+
 def load_model_and_labels():
-    """Load model and labels exactly as saved by train_model.py"""
+    """Load micro model and labels exactly as saved by train_model.py"""
     global MODEL, LABELS_REVERSE
     
     try:
-        logger.info("[LOAD] Loading model and labels...")
+        logger.info("[LOAD] Loading MICRO model and labels...")
         
         # Check if model file exists
         if not os.path.exists(MODEL_PATH):
@@ -129,10 +138,13 @@ def load_model_and_labels():
             logger.error(f"[ERROR] Labels file not found: {LABELS_PATH}")
             return False
         
-        # Load model with memory optimization
-        logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
+        # Clean memory before loading
+        extreme_memory_cleanup()
+        
+        # Load micro model with memory optimization
+        logger.info(f"[LOAD] Loading MICRO model from: {MODEL_PATH}")
         MODEL = tf.keras.models.load_model(MODEL_PATH)
-        logger.info(f"[SUCCESS] Model loaded successfully")
+        logger.info(f"[SUCCESS] MICRO model loaded successfully")
         
         # Load labels exactly as saved by train_model.py
         logger.info(f"[LOAD] Loading labels from: {LABELS_PATH}")
@@ -143,37 +155,42 @@ def load_model_and_labels():
         LABELS_REVERSE = {str(v): k for k, v in labels_dict.items()}
         logger.info(f"[SUCCESS] Loaded {len(LABELS_REVERSE)} class labels")
         
-        # Test model with dummy input
-        logger.info("[TEST] Testing model with dummy input...")
-        dummy_input = np.random.random((1, 64, 64, 3)).astype(np.float32)
+        # Test micro model with 32x32 dummy input
+        logger.info("[TEST] Testing MICRO model with 32x32 dummy input...")
+        dummy_input = np.random.random((1, 32, 32, 3)).astype(np.float32)  # UPDATED: 32x32
         test_prediction = MODEL.predict(dummy_input, verbose=0)
-        logger.info(f"[SUCCESS] Model test passed. Output shape: {test_prediction.shape}")
+        logger.info(f"[SUCCESS] MICRO model test passed. Output shape: {test_prediction.shape}")
         
         # Verify dimensions match
         if test_prediction.shape[1] != len(LABELS_REVERSE):
             logger.warning(f"[WARNING] Model output ({test_prediction.shape[1]}) doesn't match label count ({len(LABELS_REVERSE)})")
         
-        logger.info(f"[SUCCESS] Model and labels loaded successfully!")
+        logger.info(f"[SUCCESS] MICRO model and labels loaded successfully!")
         logger.info(f"[INFO] Model input shape: {MODEL.input_shape}")
         logger.info(f"[INFO] Model output shape: {MODEL.output_shape}")
         logger.info(f"[INFO] Number of classes: {len(LABELS_REVERSE)}")
+        logger.info(f"[INFO] Image size: {IMG_SIZE} (32x32 MICRO)")
+        
+        # Clean up test variables
+        del dummy_input, test_prediction
+        extreme_memory_cleanup()
         
         return True
         
     except Exception as e:
-        logger.error(f"[ERROR] Failed to load model and labels: {e}")
+        logger.error(f"[ERROR] Failed to load MICRO model and labels: {e}")
         logger.error(traceback.format_exc())
         return False
 
 def preprocess_image(image_path):
-    """Preprocess image EXACTLY as in train_model.py"""
+    """Preprocess image EXACTLY as in train_model.py - UPDATED for 32x32"""
     try:
-        logger.info(f"[PREPROCESS] Processing image: {image_path}")
+        logger.info(f"[PREPROCESS] Processing image for MICRO model: {image_path}")
         
-        # Load and resize to exact training size (64x64)
+        # Load and resize to exact training size (32x32) - UPDATED
         img = Image.open(image_path).convert('RGB')
-        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
-        logger.info(f"[PREPROCESS] Image resized to: {img.size}")
+        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)  # Now (32, 32)
+        logger.info(f"[PREPROCESS] Image resized to: {img.size} (MICRO 32x32)")
         
         # Convert to array and normalize EXACTLY as training
         img_array = np.array(img, dtype=np.float32)
@@ -189,31 +206,31 @@ def preprocess_image(image_path):
         return None
 
 def predict_disease(image_path):
-    """Predict disease using the loaded model"""
-    logger.info(f"[PREDICT] Starting prediction for: {image_path}")
+    """Predict disease using the loaded MICRO model"""
+    logger.info(f"[PREDICT] Starting MICRO prediction for: {image_path}")
     
     try:
         # Check if model is loaded
         if MODEL is None:
-            logger.error("[ERROR] Model not loaded!")
+            logger.error("[ERROR] MICRO model not loaded!")
             return "Model Error", 0.0
         
         if not LABELS_REVERSE:
             logger.error("[ERROR] Labels not loaded!")
             return "Labels Error", 0.0
         
-        # Preprocess image
+        # Preprocess image for 32x32
         img_array = preprocess_image(image_path)
         if img_array is None:
             logger.error("[ERROR] Image preprocessing failed")
             return "Preprocessing Error", 0.0
         
-        # Run prediction
-        logger.info("[PREDICT] Running model prediction...")
+        # Run prediction with MICRO model
+        logger.info("[PREDICT] Running MICRO model prediction...")
         start_time = time.time()
         predictions = MODEL.predict(img_array, verbose=0)
         prediction_time = time.time() - start_time
-        logger.info(f"[PREDICT] Prediction completed in {prediction_time:.3f} seconds")
+        logger.info(f"[PREDICT] MICRO prediction completed in {prediction_time:.3f} seconds")
         
         # Get predicted class and confidence
         predicted_class_index = int(np.argmax(predictions[0]))
@@ -224,10 +241,14 @@ def predict_disease(image_path):
         logger.info(f"[RESULT] Predicted class: {predicted_class}")
         logger.info(f"[RESULT] Confidence: {confidence:.4f}")
         
+        # Clean up
+        del img_array, predictions
+        extreme_memory_cleanup()
+        
         return predicted_class, confidence
         
     except Exception as e:
-        logger.error("[ERROR] Prediction failed!")
+        logger.error("[ERROR] MICRO prediction failed!")
         logger.error(traceback.format_exc())
         return "Prediction Error", 0.0
 
@@ -383,19 +404,21 @@ def get_treatment_info(disease_name, confidence_score=0.0):
     # Use AI for unknown diseases or low confidence
     return get_ai_treatment(disease_name, confidence_score)
 
-# Health check for Render
+# Health check for Render - UPDATED for MICRO model
 @app.route('/health')
 def health_check():
     """Health check endpoint for Render deployment"""
     return jsonify({
         "status": "healthy",
+        "model_type": "MICRO_32x32",
         "model_loaded": MODEL is not None,
         "labels_loaded": len(LABELS_REVERSE) > 0,
         "tf_version": tf.__version__,
         "model_path": MODEL_PATH,
         "labels_path": LABELS_PATH,
         "img_size": IMG_SIZE,
-        "input_shape": INPUT_SHAPE
+        "input_shape": INPUT_SHAPE,
+        "optimization": "render_free_tier_extreme"
     }), 200
 
 # Authentication routes
@@ -691,8 +714,9 @@ def camera():
     """Real-time camera detection page"""
     return render_template('camera.html')
 
-@app.route('/predict_camera', methods=['POST'])
-@login_required  
+
+@app.route('/predict_camera', methods=['POST'])  
+@login_required
 def predict_camera():
     """Handle camera capture"""
     try:
@@ -749,7 +773,7 @@ def predict_camera():
     except Exception as e:
         logger.error(f"Camera prediction error: {e}")
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route('/about')
 @login_required
 def about():
@@ -762,7 +786,6 @@ def contact():
         flash("Thanks for reaching out! We'll get back to you.")
         return redirect(url_for('contact'))
     return render_template('contact.html')
-
 
 # API endpoints
 @app.route('/api/ai_treatment', methods=['POST'])

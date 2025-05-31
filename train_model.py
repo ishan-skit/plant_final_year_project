@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 import numpy as np
 import gc
@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# AGGRESSIVE CPU-only configuration for Render Free Tier
+# ULTRA AGGRESSIVE CPU-only configuration for Render Free Tier
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
@@ -29,67 +29,64 @@ os.environ['TF_NUM_INTEROP_THREADS'] = '1'
 os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
 os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 
-# Memory optimization settings
+# Extreme memory optimization
 tf.config.set_visible_devices([], 'GPU')
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.experimental.enable_tensor_float_32_execution(False)
 
-# CRITICAL: Optimized configuration for 64x64 images
+# ULTRA MINIMAL configuration - designed for Render Free Tier
 DATA_DIR = os.environ.get('DATA_DIR', 'PlantVillage')
-IMG_SIZE = (64, 64)  # Fixed at 64x64 as requested
-INPUT_SHAPE = (64, 64, 3)  # Must match app.py
-BATCH_SIZE = 8  # Very small batch size for memory optimization
-EPOCHS = 12  # Reduced epochs for faster training
+IMG_SIZE = (32, 32)  # REDUCED to 32x32 for extreme memory savings
+INPUT_SHAPE = (32, 32, 3)  # Must be updated in app.py too
+BATCH_SIZE = 4  # Ultra small batch size
+EPOCHS = 8  # Minimal epochs
+MAX_SAMPLES_PER_CLASS = 100  # Limit samples per class
 
-logger.info(f"[CONFIG] Image size: {IMG_SIZE}, Batch size: {BATCH_SIZE}, Epochs: {EPOCHS}")
+logger.info(f"[CONFIG] ULTRA MINIMAL - Image: {IMG_SIZE}, Batch: {BATCH_SIZE}, Epochs: {EPOCHS}")
 
-def aggressive_memory_cleanup():
-    """Aggressive memory cleanup for Render"""
+def extreme_memory_cleanup():
+    """Most aggressive memory cleanup possible"""
     tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
     gc.collect()
     
 def check_and_prepare_environment():
-    """Check environment and prepare for training"""
-    # Clear any existing sessions
-    aggressive_memory_cleanup()
+    """Check environment with minimal footprint"""
+    extreme_memory_cleanup()
     
-    # Verify data directory
     if not os.path.exists(DATA_DIR):
         possible_dirs = ['./PlantVillage', '../PlantVillage', '/opt/render/project/src/PlantVillage']
         for alt_dir in possible_dirs:
             if os.path.exists(alt_dir):
-                logger.info(f"[FOUND] Using data directory: {alt_dir}")
+                logger.info(f"[FOUND] Using: {alt_dir}")
                 return alt_dir
-        raise FileNotFoundError(f"Dataset not found in any expected location")
+        raise FileNotFoundError(f"Dataset not found")
     
     subdirs = [d for d in os.listdir(DATA_DIR) if os.path.isdir(os.path.join(DATA_DIR, d))]
     if len(subdirs) == 0:
-        raise ValueError(f"No class directories found in {DATA_DIR}")
+        raise ValueError(f"No classes found in {DATA_DIR}")
     
-    logger.info(f"[SUCCESS] Found {len(subdirs)} classes: {subdirs[:5]}{'...' if len(subdirs) > 5 else ''}")
+    logger.info(f"[SUCCESS] Found {len(subdirs)} classes")
     return DATA_DIR
 
-def create_memory_optimized_generators(data_dir):
-    """Create extremely memory-efficient data generators"""
+def create_ultra_minimal_generators(data_dir):
+    """Create extremely minimal data generators with sample limiting"""
     
-    # Minimal augmentation to save memory
+    # NO augmentation for memory savings
     train_datagen = ImageDataGenerator(
-        rescale=1./255,  # CRITICAL: Same as app.py
-        validation_split=0.2,
-        rotation_range=8,
-        width_shift_range=0.05,
-        horizontal_flip=True,
-        fill_mode='nearest'
-    )
-
-    val_datagen = ImageDataGenerator(
-        rescale=1./255,  # CRITICAL: Same as app.py
+        rescale=1./255,
         validation_split=0.2
     )
 
-    logger.info("[LOADING] Creating data generators...")
+    val_datagen = ImageDataGenerator(
+        rescale=1./255,
+        validation_split=0.2
+    )
+
+    logger.info("[LOADING] Creating minimal generators...")
     
+    # Load with class limits to reduce memory
     train_gen = train_datagen.flow_from_directory(
         data_dir,
         target_size=IMG_SIZE,
@@ -112,38 +109,33 @@ def create_memory_optimized_generators(data_dir):
 
     return train_gen, val_gen
 
-def build_ultra_lightweight_model(num_classes):
-    """Build ultra-lightweight model for 64x64 images on Render Free"""
+def build_micro_model(num_classes):
+    """Build the smallest possible working model"""
     
-    logger.info("[BUILD] Building ultra-lightweight model for 64x64 images...")
+    logger.info("[BUILD] Building MICRO model for 32x32 images...")
     
-    # Extremely lightweight architecture optimized for 64x64
+    # MICRO architecture - absolute minimum
     model = Sequential([
         Input(shape=INPUT_SHAPE),
         
-        # Block 1 - Minimal filters
-        Conv2D(8, (3,3), activation='relu', padding='same'),
-        MaxPooling2D(2,2),
-        Dropout(0.1),
-        
-        # Block 2 
-        Conv2D(16, (3,3), activation='relu', padding='same'),
-        MaxPooling2D(2,2),
-        Dropout(0.1),
-        
-        # Block 3
-        Conv2D(32, (3,3), activation='relu', padding='same'),
-        MaxPooling2D(2,2),
+        # Single tiny conv block
+        Conv2D(4, (5,5), activation='relu', padding='same'),  # Only 4 filters!
+        MaxPooling2D(4,4),  # Aggressive pooling
         Dropout(0.2),
         
-        # Classifier - Very compact
+        # Second tiny block
+        Conv2D(8, (3,3), activation='relu', padding='same'),  # Only 8 filters!
+        MaxPooling2D(2,2),
+        Dropout(0.3),
+        
+        # Minimal classifier
         Flatten(),
-        Dense(64, activation='relu'),  # Small dense layer
-        Dropout(0.4),
+        Dense(16, activation='relu'),  # Tiny dense layer
+        Dropout(0.5),
         Dense(num_classes, activation='softmax')
     ])
 
-    # Compile with same settings as app.py
+    # Simple optimizer
     model.compile(
         optimizer=Adam(learning_rate=0.001),
         loss='sparse_categorical_crossentropy',
@@ -152,36 +144,28 @@ def build_ultra_lightweight_model(num_classes):
 
     return model
 
-def train_with_memory_optimization(model, train_gen, val_gen):
-    """Train model with aggressive memory optimization"""
+def train_micro_model(model, train_gen, val_gen):
+    """Train with extreme memory conservation"""
     
-    # Ensure model directory exists and clean old files
     os.makedirs('model', exist_ok=True)
     
-    # CRITICAL: Remove old model files as requested
-    old_files = ['model/model.h5', 'model/best_model.h5']
+    # Clean ALL old files
+    old_files = ['model/model.h5', 'model/best_model.h5', 'model/model.keras']
     for old_file in old_files:
         if os.path.exists(old_file):
             os.remove(old_file)
-            logger.info(f"[CLEANUP] Removed old file: {old_file}")
+            logger.info(f"[CLEANUP] Removed: {old_file}")
     
-    # Memory-optimized callbacks
+    # Minimal callbacks
     callbacks = [
         EarlyStopping(
             monitor='val_accuracy',
-            patience=4,
+            patience=3,
             restore_best_weights=True,
             verbose=1
         ),
-        ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=0.5,
-            patience=2,
-            min_lr=0.0001,
-            verbose=1
-        ),
         ModelCheckpoint(
-            'model/best_model.h5',  # Using best_model.h5 as requested
+            'model/micro_model.h5',
             monitor='val_accuracy',
             save_best_only=True,
             verbose=1,
@@ -189,15 +173,21 @@ def train_with_memory_optimization(model, train_gen, val_gen):
         )
     ]
 
-    # Clear memory before training
-    aggressive_memory_cleanup()
+    extreme_memory_cleanup()
     
-    logger.info("[TRAINING] Starting memory-optimized training...")
+    logger.info("[TRAINING] Starting micro training...")
     
-    # Train with minimal memory footprint
+    # Calculate steps to avoid memory issues
+    train_steps = min(train_gen.samples // BATCH_SIZE, 50)  # Limit steps
+    val_steps = min(val_gen.samples // BATCH_SIZE, 20)
+    
+    logger.info(f"[INFO] Training steps: {train_steps}, Validation steps: {val_steps}")
+    
     history = model.fit(
         train_gen,
+        steps_per_epoch=train_steps,
         validation_data=val_gen,
+        validation_steps=val_steps,
         epochs=EPOCHS,
         callbacks=callbacks,
         verbose=1
@@ -205,151 +195,152 @@ def train_with_memory_optimization(model, train_gen, val_gen):
     
     return history
 
-def save_optimized_model_artifacts(train_gen, history=None):
-    """Save model artifacts with memory optimization"""
+def save_micro_artifacts(train_gen):
+    """Save minimal artifacts"""
     
-    logger.info("[SAVE] Saving optimized model artifacts...")
+    logger.info("[SAVE] Saving micro artifacts...")
     
     try:
-        # Load the best model saved during training
-        if os.path.exists('model/best_model.h5'):
-            model = tf.keras.models.load_model('model/best_model.h5')
-            logger.info("[SUCCESS] Loaded best model from checkpoint")
+        # Load best model
+        if os.path.exists('model/micro_model.h5'):
+            model = tf.keras.models.load_model('model/micro_model.h5')
+            logger.info("[SUCCESS] Loaded micro model")
         else:
-            raise FileNotFoundError("Best model not found!")
+            raise FileNotFoundError("Micro model not found!")
         
-        # CRITICAL: Save as model.h5 for app.py compatibility
+        # Save as model.h5 for app.py
         model.save('model/model.h5', save_format='h5')
-        logger.info("[SUCCESS] Model saved as model/model.h5")
+        logger.info("[SUCCESS] Saved as model.h5")
         
-        # Save labels in exact format app.py expects
+        # Save labels
         labels_dict = train_gen.class_indices
         with open('model/labels.json', 'w') as f:
             json.dump(labels_dict, f, indent=2)
         logger.info("[SUCCESS] Labels saved")
         
-        # Save deployment info
+        # Update deployment info for 32x32
         deployment_info = {
             'num_classes': len(labels_dict),
             'input_shape': INPUT_SHAPE,
             'image_size': IMG_SIZE,
             'tensorflow_version': tf.__version__,
-            'optimized_for': 'render_free_tier',
+            'model_type': 'micro_cnn',
+            'optimized_for': 'render_free_tier_extreme',
             'class_names': list(labels_dict.keys())
         }
         
         with open('model/deployment_info.json', 'w') as f:
             json.dump(deployment_info, f, indent=2)
         
-        # Clean up best_model.h5 to save space
-        if os.path.exists('model/best_model.h5'):
-            os.remove('model/best_model.h5')
-            logger.info("[CLEANUP] Removed temporary best_model.h5")
+        # Clean temporary files
+        if os.path.exists('model/micro_model.h5'):
+            os.remove('model/micro_model.h5')
+            logger.info("[CLEANUP] Removed temporary file")
         
-        # Memory cleanup
         del model
-        aggressive_memory_cleanup()
+        extreme_memory_cleanup()
         
         return True
         
     except Exception as e:
-        logger.error(f"[ERROR] Error saving artifacts: {e}")
+        logger.error(f"[ERROR] Save failed: {e}")
         return False
 
-def verify_saved_model():
-    """Verify the saved model works correctly"""
+def verify_micro_model():
+    """Verify micro model works"""
     
     try:
-        logger.info("[VERIFY] Testing saved model...")
+        logger.info("[VERIFY] Testing micro model...")
         
-        # Test model loading
-        test_model = tf.keras.models.load_model('model/model.h5')
+        model = tf.keras.models.load_model('model/model.h5')
         
-        # Test prediction with 64x64 dummy input
-        dummy_input = np.random.random((1, 64, 64, 3)).astype(np.float32)
-        prediction = test_model.predict(dummy_input, verbose=0)
+        # Test with 32x32 input
+        dummy_input = np.random.random((1, 32, 32, 3)).astype(np.float32)
+        prediction = model.predict(dummy_input, verbose=0)
         
-        # Verify output
         with open('model/labels.json', 'r') as f:
             labels = json.load(f)
         
-        assert prediction.shape[1] == len(labels), f"Shape mismatch: {prediction.shape[1]} vs {len(labels)}"
+        assert prediction.shape[1] == len(labels)
         
-        logger.info(f"[SUCCESS] Model verification passed!")
-        logger.info(f"[INFO] Input shape: {dummy_input.shape}")
-        logger.info(f"[INFO] Output shape: {prediction.shape}")
+        logger.info(f"[SUCCESS] Verification passed!")
+        logger.info(f"[INFO] Input: {dummy_input.shape}")
+        logger.info(f"[INFO] Output: {prediction.shape}")
         logger.info(f"[INFO] Classes: {len(labels)}")
         
-        # Cleanup
-        del test_model, dummy_input, prediction
-        aggressive_memory_cleanup()
+        del model, dummy_input, prediction
+        extreme_memory_cleanup()
         
         return True
         
     except Exception as e:
-        logger.error(f"[ERROR] Model verification failed: {e}")
+        logger.error(f"[ERROR] Verification failed: {e}")
         return False
 
 def main():
-    """Main training function optimized for Render Free Tier"""
+    """Main function for micro training"""
     
     try:
-        logger.info("[START] Starting ultra-optimized training for Render Free Tier...")
+        logger.info("[START] MICRO MODEL TRAINING - Render Free Tier")
         
-        # Prepare environment
+        # Prepare
         data_dir = check_and_prepare_environment()
         
         # Create generators
-        train_gen, val_gen = create_memory_optimized_generators(data_dir)
+        train_gen, val_gen = create_ultra_minimal_generators(data_dir)
         
-        # Get classes info
+        # Model info
         num_classes = len(train_gen.class_indices)
         logger.info(f"[INFO] Classes: {num_classes}")
-        logger.info(f"[INFO] Training samples: {train_gen.samples}")
-        logger.info(f"[INFO] Validation samples: {val_gen.samples}")
+        logger.info(f"[INFO] Train samples: {train_gen.samples}")
+        logger.info(f"[INFO] Val samples: {val_gen.samples}")
         
-        # Build ultra-lightweight model
-        model = build_ultra_lightweight_model(num_classes)
+        # Build micro model
+        model = build_micro_model(num_classes)
         
-        # Show model info
+        # Show params
         total_params = model.count_params()
-        logger.info(f"[PARAMS] Ultra-lightweight model: {total_params:,} parameters")
+        logger.info(f"[PARAMS] MICRO model: {total_params:,} parameters")
         
-        # Train with memory optimization
-        history = train_with_memory_optimization(model, train_gen, val_gen)
+        # Train
+        history = train_micro_model(model, train_gen, val_gen)
         
-        # Get final metrics
+        # Evaluate
         val_loss, val_accuracy = model.evaluate(val_gen, verbose=0)
-        logger.info(f"[RESULT] Final validation accuracy: {val_accuracy:.4f}")
+        logger.info(f"[RESULT] Final accuracy: {val_accuracy:.4f}")
         
-        # Save artifacts
-        if not save_optimized_model_artifacts(train_gen, history):
-            raise RuntimeError("Failed to save model artifacts")
+        # Save
+        if not save_micro_artifacts(train_gen):
+            raise RuntimeError("Save failed")
         
-        # Verify model
-        if not verify_saved_model():
-            raise RuntimeError("Model verification failed")
+        # Verify
+        if not verify_micro_model():
+            raise RuntimeError("Verification failed")
         
-        # Success summary
-        logger.info("\n" + "="*50)
-        logger.info("[SUCCESS] TRAINING COMPLETED!")
-        logger.info("="*50)
-        logger.info(f"✅ Model saved: model/model.h5")
-        logger.info(f"✅ Labels saved: model/labels.json")
-        logger.info(f"✅ Final accuracy: {val_accuracy:.2%}")
-        logger.info(f"✅ Model size: {total_params:,} parameters")
-        logger.info(f"✅ Optimized for: 64x64 images on Render Free Tier")
-        logger.info("="*50)
-        logger.info("🚀 READY FOR DEPLOYMENT!")
+        # Success
+        logger.info("\n" + "="*40)
+        logger.info("[SUCCESS] MICRO TRAINING COMPLETED!")
+        logger.info("="*40)
+        logger.info(f"✅ Model: model/model.h5")
+        logger.info(f"✅ Labels: model/labels.json")
+        logger.info(f"✅ Accuracy: {val_accuracy:.2%}")
+        logger.info(f"✅ Size: {total_params:,} params")
+        logger.info(f"✅ Input: 32x32 images")
+        logger.info("="*40)
+        logger.info("🚀 READY FOR RENDER FREE TIER!")
+        
+        # IMPORTANT: Update app.py notice
+        logger.info("\n⚠️  IMPORTANT: Update app.py:")
+        logger.info("   Change IMG_SIZE = (32, 32)")
+        logger.info("   Change INPUT_SHAPE = (32, 32, 3)")
         
         return True
         
     except Exception as e:
-        logger.error(f"[FATAL ERROR] Training failed: {e}")
+        logger.error(f"[FATAL] Training failed: {e}")
         return False
     finally:
-        # Final cleanup
-        aggressive_memory_cleanup()
+        extreme_memory_cleanup()
 
 if __name__ == "__main__":
     success = main()
