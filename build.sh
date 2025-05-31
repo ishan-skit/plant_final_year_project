@@ -1,32 +1,34 @@
 #!/usr/bin/env bash
 set -o errexit
 
-echo " Starting Render build process..."
+echo "=== Starting Render Build ==="
 
-# Upgrade pip and install build tools
-python -m pip install --upgrade pip setuptools wheel
+# System setup
+python -m pip install --upgrade pip setuptools wheel --no-cache-dir
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install ONLY production dependencies (no dev packages)
+pip install -r requirements.txt --no-cache-dir
 
-# Clear pip cache to reduce slug size
+# Verify critical model files
+required_files=(
+  "model/plant_disease_model.h5"
+  "model/class_names.json"
+  "model/deploy_config.json"
+)
+
+echo "--- Verifying Model Files ---"
+for file in "${required_files[@]}"; do
+  if [ ! -f "$file" ]; then
+    echo "ERROR: Missing required file: $file"
+    echo "Contents of model/:"
+    ls -l model/
+    exit 1
+  fi
+done
+
+# Cleanup to reduce slug size
 pip cache purge
+find /usr/local/lib/python*/ -type d -name "tests" -exec rm -rf {} +
+find /usr/local/lib/python*/ -type d -name "__pycache__" -exec rm -rf {} +
 
-# Check model artifacts
-echo " Verifying model files..."
-if [ ! -f "model/model.h5" ]; then
-  echo " ERROR: model/model.h5 not found!"
-  echo " Contents of model directory:"
-  ls -l model/
-  exit 1
-fi
-
-if [ ! -f "model/labels.json" ]; then
-  echo " ERROR: model/labels.json not found!"
-  exit 1
-fi
-
-echo " Model files found:"
-ls -l model/
-
-echo " Build completed successfully for Render!"
+echo "✓ Build completed successfully"

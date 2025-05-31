@@ -3,17 +3,20 @@ services:
     name: plant-disease-detection
     runtime: python
     buildCommand: ./build.sh
-    startCommand: gunicorn --timeout 300 --workers 1 --worker-class sync --max-requests 1000 --preload app:app
+    startCommand: gunicorn --timeout 300 --workers 1 --threads 1 --worker-class sync --max-requests 1000 --preload app:app
     autoDeploy: true
     envVars:
       - key: SECRET_KEY
-        value: your_generated_secret_key
+        value: your_generated_secret_key_here  # Generate with: openssl rand -hex 32
       - key: GEMINI_API_KEY
-        value: your_api_key
-      - key: GOOGLE_CLIENT_ID
-        value: your_client_id
-      - key: GOOGLE_CLIENT_SECRET
-        value: your_client_secret
+        value: your_api_key_here
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "2"  # Reduce TensorFlow logging
       - key: PORT
-        value: 10000  
-    region: oregon 
+        value: "10000"  
+    region: oregon
+    plan: free  # Explicit free tier declaration
+    disk:
+      name: uploads_volume
+      mountPath: /opt/render/project/src/static/uploads
+      sizeGB: 1  # Minimal storage for uploads

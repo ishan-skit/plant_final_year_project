@@ -64,17 +64,19 @@ if os.getenv("GEMINI_API_KEY"):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     logger.info("Gemini AI configured successfully")
 
-# Constants matching train_model.py EXACTLY - UPDATED FOR 32x32
+# Constants - Updated to match your trained model
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
-MODEL_PATH = 'model/model.h5'  # EXACT match with train_model.py output
-LABELS_PATH = 'model/labels.json'  # EXACT match with train_model.py output
+MODEL_PATH = 'model/plant_disease_model.h5'  # Changed to match trained model
+LABELS_PATH = 'model/class_names.json'      # Changed to match trained model
+CONFIG_PATH = 'model/deploy_config.json'    # Added for model config
 TREATMENTS_PATH = 'plant_treatments.csv'
-IMG_SIZE = (32, 32)  # UPDATED: Changed from (64, 64) to match train_model.py
-INPUT_SHAPE = (32, 32, 3)  # UPDATED: Changed from (64, 64, 3) to match train_model.py
+IMG_SIZE = (128, 128)  # Updated to match your trained model
+INPUT_SHAPE = (128, 128, 3)  # Updated to match your trained model
 
 # Initialize global variables
 MODEL = None
-LABELS_REVERSE = {}
+CLASS_NAMES = None
+DEPLOY_CONFIG = None
 
 # Flask App Configuration
 app = Flask(__name__)
@@ -118,58 +120,57 @@ if os.path.exists(TREATMENTS_PATH):
     treatments_df = pd.read_csv(TREATMENTS_PATH)
 
 def extreme_memory_cleanup():
-    """Extreme memory cleanup for micro model"""
+    """Extreme memory cleanup"""
     tf.keras.backend.clear_session()
     gc.collect()
 
-def load_model_and_labels():
-    """Load micro model and labels exactly as saved by train_model.py"""
-    global MODEL, LABELS_REVERSE
+def load_model_and_config():
+    """Load the pre-trained model and configuration"""
+    global MODEL, CLASS_NAMES, DEPLOY_CONFIG
     
     try:
-        logger.info("[LOAD] Loading MICRO model and labels...")
+        logger.info("[LOAD] Loading model and configuration...")
         
         # Check if model file exists
         if not os.path.exists(MODEL_PATH):
             logger.error(f"[ERROR] Model file not found: {MODEL_PATH}")
             return False
         
-        if not os.path.exists(LABELS_PATH):
-            logger.error(f"[ERROR] Labels file not found: {LABELS_PATH}")
-            return False
-        
         # Clean memory before loading
         extreme_memory_cleanup()
         
-        # Load micro model with memory optimization
-        logger.info(f"[LOAD] Loading MICRO model from: {MODEL_PATH}")
+        # Load model with memory optimization
+        logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
         MODEL = tf.keras.models.load_model(MODEL_PATH)
-        logger.info(f"[SUCCESS] MICRO model loaded successfully")
+        logger.info(f"[SUCCESS] Model loaded successfully")
         
-        # Load labels exactly as saved by train_model.py
+        # Load class names
         logger.info(f"[LOAD] Loading labels from: {LABELS_PATH}")
         with open(LABELS_PATH, 'r') as f:
-            labels_dict = json.load(f)
+            CLASS_NAMES = json.load(f)
         
-        # Create reverse mapping: index -> class_name
-        LABELS_REVERSE = {str(v): k for k, v in labels_dict.items()}
-        logger.info(f"[SUCCESS] Loaded {len(LABELS_REVERSE)} class labels")
+        # Load deploy config
+        logger.info(f"[LOAD] Loading config from: {CONFIG_PATH}")
+        with open(CONFIG_PATH, 'r') as f:
+            DEPLOY_CONFIG = json.load(f)
         
-        # Test micro model with 32x32 dummy input
-        logger.info("[TEST] Testing MICRO model with 32x32 dummy input...")
-        dummy_input = np.random.random((1, 32, 32, 3)).astype(np.float32)  # UPDATED: 32x32
+        logger.info(f"[SUCCESS] Loaded {len(CLASS_NAMES)} class labels")
+        
+        # Test model with dummy input
+        logger.info("[TEST] Testing model with dummy input...")
+        dummy_input = np.random.random((1, *INPUT_SHAPE)).astype(np.float32)
         test_prediction = MODEL.predict(dummy_input, verbose=0)
-        logger.info(f"[SUCCESS] MICRO model test passed. Output shape: {test_prediction.shape}")
+        logger.info(f"[SUCCESS] Model test passed. Output shape: {test_prediction.shape}")
         
         # Verify dimensions match
-        if test_prediction.shape[1] != len(LABELS_REVERSE):
-            logger.warning(f"[WARNING] Model output ({test_prediction.shape[1]}) doesn't match label count ({len(LABELS_REVERSE)})")
+        if test_prediction.shape[1] != len(CLASS_NAMES):
+            logger.warning(f"[WARNING] Model output ({test_prediction.shape[1]}) doesn't match label count ({len(CLASS_NAMES)})")
         
-        logger.info(f"[SUCCESS] MICRO model and labels loaded successfully!")
+        logger.info(f"[SUCCESS] Model and config loaded successfully!")
         logger.info(f"[INFO] Model input shape: {MODEL.input_shape}")
         logger.info(f"[INFO] Model output shape: {MODEL.output_shape}")
-        logger.info(f"[INFO] Number of classes: {len(LABELS_REVERSE)}")
-        logger.info(f"[INFO] Image size: {IMG_SIZE} (32x32 MICRO)")
+        logger.info(f"[INFO] Number of classes: {len(CLASS_NAMES)}")
+        logger.info(f"[INFO] Image size: {IMG_SIZE}")
         
         # Clean up test variables
         del dummy_input, test_prediction
@@ -178,24 +179,24 @@ def load_model_and_labels():
         return True
         
     except Exception as e:
-        logger.error(f"[ERROR] Failed to load MICRO model and labels: {e}")
+        logger.error(f"[ERROR] Failed to load model and config: {e}")
         logger.error(traceback.format_exc())
         return False
 
 def preprocess_image(image_path):
-    """Preprocess image EXACTLY as in train_model.py - UPDATED for 32x32"""
+    """Preprocess image for prediction"""
     try:
-        logger.info(f"[PREPROCESS] Processing image for MICRO model: {image_path}")
+        logger.info(f"[PREPROCESS] Processing image: {image_path}")
         
-        # Load and resize to exact training size (32x32) - UPDATED
+        # Load and resize to training size
         img = Image.open(image_path).convert('RGB')
-        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)  # Now (32, 32)
-        logger.info(f"[PREPROCESS] Image resized to: {img.size} (MICRO 32x32)")
+        img = img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
+        logger.info(f"[PREPROCESS] Image resized to: {img.size}")
         
-        # Convert to array and normalize EXACTLY as training
+        # Convert to array and normalize
         img_array = np.array(img, dtype=np.float32)
         img_array = np.expand_dims(img_array, axis=0)
-        img_array = img_array / 255.0  # EXACT normalization as train_model.py
+        img_array = img_array / 255.0
         
         logger.info(f"[PREPROCESS] Final array shape: {img_array.shape}")
         logger.info(f"[PREPROCESS] Array min/max: {img_array.min():.3f}/{img_array.max():.3f}")
@@ -206,36 +207,36 @@ def preprocess_image(image_path):
         return None
 
 def predict_disease(image_path):
-    """Predict disease using the loaded MICRO model"""
-    logger.info(f"[PREDICT] Starting MICRO prediction for: {image_path}")
+    """Predict disease using the loaded model"""
+    logger.info(f"[PREDICT] Starting prediction for: {image_path}")
     
     try:
         # Check if model is loaded
         if MODEL is None:
-            logger.error("[ERROR] MICRO model not loaded!")
+            logger.error("[ERROR] Model not loaded!")
             return "Model Error", 0.0
         
-        if not LABELS_REVERSE:
-            logger.error("[ERROR] Labels not loaded!")
+        if not CLASS_NAMES:
+            logger.error("[ERROR] Class names not loaded!")
             return "Labels Error", 0.0
         
-        # Preprocess image for 32x32
+        # Preprocess image
         img_array = preprocess_image(image_path)
         if img_array is None:
             logger.error("[ERROR] Image preprocessing failed")
             return "Preprocessing Error", 0.0
         
-        # Run prediction with MICRO model
-        logger.info("[PREDICT] Running MICRO model prediction...")
+        # Run prediction
+        logger.info("[PREDICT] Running model prediction...")
         start_time = time.time()
         predictions = MODEL.predict(img_array, verbose=0)
         prediction_time = time.time() - start_time
-        logger.info(f"[PREDICT] MICRO prediction completed in {prediction_time:.3f} seconds")
+        logger.info(f"[PREDICT] Prediction completed in {prediction_time:.3f} seconds")
         
         # Get predicted class and confidence
         predicted_class_index = int(np.argmax(predictions[0]))
         confidence = float(predictions[0][predicted_class_index])
-        predicted_class = LABELS_REVERSE.get(str(predicted_class_index), "Unknown")
+        predicted_class = CLASS_NAMES.get(str(predicted_class_index), "Unknown")
         
         logger.info(f"[RESULT] Predicted class index: {predicted_class_index}")
         logger.info(f"[RESULT] Predicted class: {predicted_class}")
@@ -248,9 +249,14 @@ def predict_disease(image_path):
         return predicted_class, confidence
         
     except Exception as e:
-        logger.error("[ERROR] MICRO prediction failed!")
+        logger.error("[ERROR] Prediction failed!")
         logger.error(traceback.format_exc())
         return "Prediction Error", 0.0
+
+# [Keep all your existing database functions, routes, and utilities]
+# init_db(), getImmediateAction(), allowed_file(), login_required(), 
+# get_ai_treatment(), get_fallback_treatment(), get_treatment_info()
+# All your existing routes (/, /register, /login, /dashboard, etc.)
 
 # Database initialization
 def init_db():
@@ -404,15 +410,16 @@ def get_treatment_info(disease_name, confidence_score=0.0):
     # Use AI for unknown diseases or low confidence
     return get_ai_treatment(disease_name, confidence_score)
 
-# Health check for Render - UPDATED for MICRO model
+
+# Health check endpoint - Updated
 @app.route('/health')
 def health_check():
     """Health check endpoint for Render deployment"""
     return jsonify({
         "status": "healthy",
-        "model_type": "MICRO_32x32",
         "model_loaded": MODEL is not None,
-        "labels_loaded": len(LABELS_REVERSE) > 0,
+        "labels_loaded": CLASS_NAMES is not None,
+        "config_loaded": DEPLOY_CONFIG is not None,
         "tf_version": tf.__version__,
         "model_path": MODEL_PATH,
         "labels_path": LABELS_PATH,
@@ -420,6 +427,9 @@ def health_check():
         "input_shape": INPUT_SHAPE,
         "optimization": "render_free_tier_extreme"
     }), 200
+
+# [Keep all your other existing routes and functions exactly as they were]
+
 
 # Authentication routes
 @app.route('/')
@@ -805,18 +815,6 @@ def api_ai_treatment():
         logger.error(f"AI treatment API error: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/test_model')
-@login_required
-def test_model():
-    """Test endpoint for model functionality"""
-    return jsonify({
-        "model_loaded": MODEL is not None,
-        "labels_count": len(LABELS_REVERSE),
-        "tf_version": tf.__version__,
-        "input_shape": INPUT_SHAPE,
-        "classes": list(LABELS_REVERSE.values())[:5] if LABELS_REVERSE else []
-    })
-
 @app.route('/save_detection', methods=['POST'])
 @login_required
 def save_detection():
@@ -924,12 +922,13 @@ def internal_error(error):
     logger.error(f"Internal error: {error}")
     return render_template('errors/500.html'), 500
 
+
 # Initialize model on startup
 def initialize_app():
     """Initialize the application"""
     logger.info("Initializing application...")
     init_db()
-    if not load_model_and_labels():
+    if not load_model_and_config():
         logger.error("Failed to load model - application may not function properly")
     logger.info("Application initialization complete")
 
@@ -942,5 +941,5 @@ if __name__ == '__main__':
 
     logger.info(f"Starting Flask app on port {port}")
     logger.info(f"Model loaded: {MODEL is not None}")
-    logger.info(f"Labels loaded: {len(LABELS_REVERSE)} classes")
+    logger.info(f"Labels loaded: {len(CLASS_NAMES) if CLASS_NAMES else 0} classes")
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
