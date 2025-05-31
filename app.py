@@ -37,7 +37,8 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import send_from_directory
 import secrets
-from keras.saving.legacy.hdf5_format import load_model
+from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
+
 
 
 # Configure logging for Render deployment
@@ -146,7 +147,7 @@ def load_model_and_config():
         logger.info(f"[LOAD] Loading model from: {MODEL_PATH}")
         try:
             # This is the key fix
-            from keras.saving.legacy.hdf5_format import load_model as legacy_load_model
+            from keras.saving.legacy.saved_model.load import load_model as legacy_load_model
             MODEL = legacy_load_model(MODEL_PATH, compile=False)
         except ImportError:
             # Fallback for older versions
