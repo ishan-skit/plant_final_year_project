@@ -1,95 +1,3 @@
-# 🌱 Plant Disease Detection App
-
-A web application that uses a deep learning model to detect plant diseases from uploaded leaf images.
-
-## 🔗 Live Demo
-[👉 Click here to try the app](https://plant-final-year-project.onrender.com/)
-
-## 📸 Features
-- Upload leaf images to get instant disease predictions
-- Displays top probable disease classes with confidence scores
-- Clean, responsive frontend using HTML/CSS
-- Powered by a trained deep learning model
-
-## 🧠 Model
-- Trained on [PlantVillage Dataset / Custom Dataset]
-- CNN model built using TensorFlow/Keras
-- Achieves [XX]% accuracy on test set
-
-## ⚙️ Technologies Used
-- Python
-- Flask / FastAPI
-- TensorFlow / PyTorch
-- HTML5, CSS3, JavaScript
-- Render for deployment
-
-## 📁 Project Structure
-project/
-│
-├── static/ # CSS and JS files
-├── templates/ # HTML templates
-├── model.pkl # Trained ML model
-├── app.py # Main backend script
-├── requirements.txt # Dependencies
-
-bash
-Copy
-Edit
-
-## 🚀 How to Run Locally
-```bash
-git clone https://github.com/ishan-skit/plant_final_year_project.git
-cd plant_final_year_project
-pip install -r requirements.txt
-python app.py
-📷 Screenshots
-Include UI screenshots here if you have any
-
-📜 License
-MIT License
-
-👨‍💻 Author
-Ishan Sharma – GitHub
-
-yaml
-Copy
-Edit
-
----
-
-### 📩 Next Step:
-Please either:
-- Upload the key files I listed above (especially `app.py` and HTML),
-- **OR** just say “use the repo as-is” and I’ll fetch everything and make the full `README.md`.
-
-Let me know which way you prefer.
-
-
-
-
-
-
-
-You said:
-app.py
-Python
-train_model.py
-Python
-about.html
-File
-camera.html
-File
-dashboard.html
-File
-
-
-ChatGPT said:
-Thanks for sharing your files! Based on the contents of app.py, train_model.py, and your HTML templates (about.html, camera.html, dashboard.html), along with your live demo link, here's a professional and detailed README.md tailored for your GitHub project:
-
-✅ Final README.md for plant_final_year_project
-markdown
-Copy
-Edit
 # 🌿 PlantCare AI – Deep Learning Powered Plant Disease Detection
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-success?style=for-the-badge&logo=render&color=4caf50)](https://plant-final-year-project.onrender.com/)
@@ -129,7 +37,6 @@ Edit
 ### 📁 Model Training
 File: [`train_model.py`](train_model.py)
 
-```bash
 # Trains and saves model
 python train_model.py
 Model is saved to:
@@ -222,6 +129,4 @@ Integration with agriculture databases (ICAR, FAO)
 Built with 💚 by Ishan Jain
 🔗 GitHub Profile
 
-yaml
-Copy
-Edit
+
